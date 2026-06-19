@@ -1,0 +1,117 @@
+services:
+  postgres:
+    image: postgres:16.1
+    container_name: ppms-postgres
+    restart: unless-stopped
+    command: postgres -c max_connections=150 -c shared_buffers=256MB
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ppms_user
+      POSTGRES_PASSWORD: change_me
+      POSTGRES_DB: ppms_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  minio:
+    image: minio/minio:latest
+    container_name: ppms-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file:
+      - .env
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: ppms-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set ppms-minio http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+      mc mb --ignore-existing ppms-minio/"$${MINIO_BUCKET}";
+      mc anonymous set none ppms-minio/"$${MINIO_BUCKET}";
+      exit 0;
+      "
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ppms-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ppms-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  backup:
+    image: postgres:16-alpine
+    container_name: ppms-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: change_me
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      /bin/sh -c "
+      while true; do
+        TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+        echo \"[$$(date)] Starting scheduled backup\";
+        pg_dump -h postgres -U ppms_user -d ppms_db --format=plain | gzip > /backups/ppms_db_$${TIMESTAMP}.sql.gz;
+        echo \"[$$(date)] Backup saved: ppms_db_$${TIMESTAMP}.sql.gz\";
+        find /backups -name 'ppms_db_*.sql.gz' -mtime +30 -delete;
+        sleep 86400;
+      done
+      "
+
+volumes:
+  postgres_data:
+  minio_data:

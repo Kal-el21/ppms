@@ -1,0 +1,38 @@
+import axiosInstance from "../../../api/axiosInstance";
+import type { ApiResponse } from "../../../types";
+import type { Task } from "../types";
+
+export const taskApi = {
+  getByProject: async (projectId: number) => {
+    const res = await axiosInstance.get<ApiResponse<Task[]>>(`/projects/${projectId}/tasks`);
+    return res.data.data;
+  },
+
+  create: async (projectId: number, payload: Partial<Task>) => {
+    const res = await axiosInstance.post<ApiResponse<Task>>(`/projects/${projectId}/tasks`, payload);
+    return res.data.data;
+  },
+
+  changeStatus: async (projectId: number, taskId: number, status: string, version: number) => {
+    await axiosInstance.patch(`/projects/${projectId}/tasks/${taskId}/status`, { status, version });
+  },
+
+  updateProgress: async (projectId: number, taskId: number, progress: number, version: number) => {
+    await axiosInstance.patch(`/projects/${projectId}/tasks/${taskId}/progress`, { progress, version });
+  },
+
+  assignUsers: async (projectId: number, taskId: number, userIds: number[]) => {
+    await axiosInstance.post(`/projects/${projectId}/tasks/${taskId}/assignees`, { user_ids: userIds });
+  },
+
+  getComments: async (projectId: number, taskId: number, page = 1, limit = 20) => {
+    const res = await axiosInstance.get(`/projects/${projectId}/tasks/${taskId}/comments`, {
+      params: { page, limit },
+    });
+    return res.data as { data: any[]; meta: { page: number; limit: number; total: number } };
+  },
+
+  addComment: async (projectId: number, taskId: number, comment: string) => {
+    await axiosInstance.post(`/projects/${projectId}/tasks/${taskId}/comments`, { comment });
+  },
+};
