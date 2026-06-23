@@ -1,42 +1,76 @@
 import { useNotificationPreferences, useUpdatePreference } from "../hooks/useNotifications";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Card, CardContent } from "../../../components/ui/card";
+import { PageHeader } from "../../../components/shared/PageHeader";
 
-const typeLabels: Record<string, string> = {
-  REQUEST_SUBMITTED: "Request Submitted",
-  REQUEST_APPROVED: "Request Approved",
-  REQUEST_REJECTED: "Request Rejected",
-  TASK_ASSIGNED: "Task Assigned",
-  TASK_COMPLETED: "Task Completed",
-  BUDGET_WARNING: "Budget Warning",
-  BUDGET_OVER_LIMIT: "Budget Over Limit",
-  HANDOVER_SENT: "Handover Sent",
-  HANDOVER_RECEIVED: "Handover Received",
+const typeMeta: Record<string, { label: string; desc: string; group: string }> = {
+  REQUEST_SUBMITTED: { label: "Request Disubmit", desc: "Saat ada request baru menunggu review Anda", group: "Project Request" },
+  REQUEST_APPROVED: { label: "Request Disetujui", desc: "Saat request Anda disetujui", group: "Project Request" },
+  REQUEST_REJECTED: { label: "Request Ditolak", desc: "Saat request Anda perlu revisi atau ditolak", group: "Project Request" },
+  TASK_ASSIGNED: { label: "Task Ditugaskan", desc: "Saat Anda ditugaskan ke task baru", group: "Task" },
+  TASK_COMPLETED: { label: "Task Selesai", desc: "Saat task di project Anda selesai", group: "Task" },
+  BUDGET_WARNING: { label: "Peringatan Budget", desc: "Saat penggunaan budget mencapai 80%", group: "Budget" },
+  BUDGET_OVER_LIMIT: { label: "Budget Melebihi Limit", desc: "Saat penggunaan budget melebihi 100%", group: "Budget" },
+  HANDOVER_SENT: { label: "Handover Dikirim", desc: "Saat dokumen dikirimkan ke Anda", group: "Handover" },
+  HANDOVER_RECEIVED: { label: "Handover Diterima", desc: "Saat handover Anda dikonfirmasi diterima", group: "Handover" },
 };
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${
+        checked ? "bg-primary-600" : "bg-surface-tertiary"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+          checked ? "translate-x-[18px]" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
 
 export default function NotificationPreferencesPage() {
   const { data: preferences, isLoading } = useNotificationPreferences();
   const { mutate: updatePref } = useUpdatePreference();
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <div className="text-ink-secondary text-sm">Memuat preferensi...</div>;
+
+  const grouped = (preferences || []).reduce<Record<string, typeof preferences>>((acc, p) => {
+    const group = typeMeta[p.type]?.group || "Lainnya";
+    if (!acc[group]) acc[group] = [];
+    acc[group]!.push(p);
+    return acc;
+  }, {});
 
   return (
-    <Card className="max-w-md">
-      <CardHeader>
-        <CardTitle>Notification Preferences</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {preferences?.map((p) => (
-          <div key={p.type} className="flex items-center justify-between">
-            <span className="text-sm">{typeLabels[p.type] || p.type}</span>
-            <input
-              type="checkbox"
-              checked={p.enabled}
-              onChange={(e) => updatePref({ type: p.type, enabled: e.target.checked })}
-              className="h-4 w-4"
-            />
-          </div>
+    <div className="max-w-2xl">
+      <PageHeader title="Notification Preferences" subtitle="Atur jenis notifikasi yang ingin Anda terima" />
+
+      <div className="space-y-4">
+        {Object.entries(grouped).map(([group, items]) => (
+          <Card key={group}>
+            <CardContent className="pt-5">
+              <p className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-tertiary mb-3">{group}</p>
+              <div className="space-y-1">
+                {items?.map((p) => {
+                  const meta = typeMeta[p.type];
+                  return (
+                    <div key={p.type} className="flex items-center justify-between py-2.5">
+                      <div className="min-w-0 pr-4">
+                        <p className="text-[13px] font-medium m-0">{meta?.label || p.type}</p>
+                        {meta?.desc && <p className="text-[11.5px] text-ink-tertiary m-0 mt-0.5">{meta.desc}</p>}
+                      </div>
+                      <Toggle checked={p.enabled} onChange={(v) => updatePref({ type: p.type, enabled: v })} />
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

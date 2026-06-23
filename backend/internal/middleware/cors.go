@@ -7,16 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CORSConfig mengizinkan origin frontend mengakses API.
-// Di production, ganti allowedOrigins dengan domain resmi perusahaan
-// (jangan gunakan AllowAllOrigins di production).
 func CORSConfig(allowedOrigins []string) gin.HandlerFunc {
 	return cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Disposition"}, // perlu untuk file download (reporting)
-		AllowCredentials: true,
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-CSRF-Token"},
+		ExposeHeaders:    []string{"Content-Disposition"},
+		AllowCredentials: true, // WAJIB true agar browser mengizinkan cookie dikirim cross-port (localhost:5173 -> localhost:8080)
 		MaxAge:           12 * time.Hour,
 	})
 }

@@ -6,9 +6,10 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	AccessToken  string      `json:"access_token"`
-	RefreshToken string      `json:"refresh_token"`
-	User         UserSummary `json:"user"`
+	User      UserSummary `json:"user"`
+	CSRFToken string      `json:"csrf_token"`
+	// AccessToken & RefreshToken TIDAK LAGI dikirim di body sejak migrasi cookie.
+	// Token dikirim via Set-Cookie header, ditangani di handler, bukan di sini.
 }
 
 type UserSummary struct {
@@ -24,8 +25,8 @@ type RefreshTokenRequest struct {
 }
 
 type RefreshTokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	CSRFToken string `json:"csrf_token"`
+	// AccessToken & RefreshToken juga via Set-Cookie, bukan body
 }
 
 type LogoutRequest struct {

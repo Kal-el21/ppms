@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate, useParams } from "react-router-dom";
@@ -6,14 +6,15 @@ import { useCreateDraft, useRequestDetail, useUpdateDraft } from "../hooks/useRe
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
+import { PageHeader } from "../../../components/shared/PageHeader";
 
 const schema = z.object({
   title: z.string().min(5, "Minimal 5 karakter"),
   description: z.string().optional(),
   business_goal: z.string().optional(),
   expected_outcome: z.string().optional(),
-  estimated_budget: z.coerce.number().min(0),
+  estimated_budget: z.number().min(0),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -44,7 +45,7 @@ export default function RequestFormPage() {
       : undefined,
   });
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit: SubmitHandler<FormValues> = (values) => {
     if (isEdit && existing) {
       update(
         { ...values, version: existing.version },
@@ -58,43 +59,55 @@ export default function RequestFormPage() {
   };
 
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>{isEdit ? "Edit Draft" : "New Project Request"}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input id="title" {...register("title")} />
-            {errors.title && <p className="text-sm text-red-500">{errors.title.message}</p>}
-          </div>
+    <div className="max-w-2xl">
+      <PageHeader
+        title={isEdit ? "Edit Draft" : "New Project Request"}
+        subtitle="Lengkapi detail pengajuan project sebelum disubmit untuk review."
+      />
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Input id="description" {...register("description")} />
-          </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Informasi Request</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <Label htmlFor="title">Judul</Label>
+              <Input id="title" placeholder="cth. Migrasi Sistem CRM ke Cloud" {...register("title")} />
+              {errors.title && <p className="text-xs text-danger-600 mt-1.5">{errors.title.message}</p>}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="business_goal">Business Goal</Label>
-            <Input id="business_goal" {...register("business_goal")} />
-          </div>
+            <div>
+              <Label htmlFor="description">Deskripsi</Label>
+              <Input id="description" placeholder="Jelaskan ruang lingkup project secara singkat" {...register("description")} />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="expected_outcome">Expected Outcome</Label>
-            <Input id="expected_outcome" {...register("expected_outcome")} />
-          </div>
+            <div>
+              <Label htmlFor="business_goal">Tujuan Bisnis</Label>
+              <Input id="business_goal" placeholder="cth. Meningkatkan efisiensi operasional 20%" {...register("business_goal")} />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="estimated_budget">Estimated Budget (Rp)</Label>
-            <Input id="estimated_budget" type="number" {...register("estimated_budget")} />
-          </div>
+            <div>
+              <Label htmlFor="expected_outcome">Hasil yang Diharapkan</Label>
+              <Input id="expected_outcome" placeholder="cth. Sistem CRM baru live dan stabil" {...register("expected_outcome")} />
+            </div>
 
-          <Button type="submit" disabled={creating || updating}>
-            {isEdit ? "Save Draft" : "Create Draft"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+            <div>
+              <Label htmlFor="estimated_budget">Estimasi Anggaran (Rp)</Label>
+              <Input id="estimated_budget" type="number" placeholder="0" {...register("estimated_budget", { valueAsNumber: true })} />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" variant="primary" disabled={creating || updating}>
+                {isEdit ? "Simpan Draft" : "Buat Draft"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+                Batal
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

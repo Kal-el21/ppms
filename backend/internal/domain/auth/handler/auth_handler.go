@@ -3,9 +3,12 @@ package handler
 import (
 	"net/http"
 
+	"github.com/Kal-el21/backend/configs"
 	auditservice "github.com/Kal-el21/backend/internal/domain/audit/service"
 	"github.com/Kal-el21/backend/internal/domain/auth/dto"
 	"github.com/Kal-el21/backend/internal/domain/auth/service"
+	"github.com/Kal-el21/backend/internal/middleware"
+	"github.com/Kal-el21/backend/internal/shared/cookie"
 	apperrors "github.com/Kal-el21/backend/internal/shared/errors"
 	"github.com/Kal-el21/backend/internal/shared/response"
 	"github.com/gin-gonic/gin"
@@ -14,10 +17,23 @@ import (
 type AuthHandler struct {
 	service  service.AuthService
 	auditSvc auditservice.AuditService
+	cfg      *configs.Config
 }
 
-func NewAuthHandler(service service.AuthService, auditSvc auditservice.AuditService) *AuthHandler {
-	return &AuthHandler{service: service, auditSvc: auditSvc}
+func NewAuthHandler(service service.AuthService, auditSvc auditservice.AuditService, cfg *configs.Config) *AuthHandler {
+	return &AuthHandler{service: service, auditSvc: auditSvc, cfg: cfg}
+}
+
+func (h *AuthHandler) cookieConfig() cookie.Config {
+	sameSite := http.SameSiteLaxMode
+	// Strict lebih aman tapi memutus flow OAuth-style redirect dari domain lain;
+	// untuk PPMS internal (single SPA origin, tidak ada redirect cross-site),
+	// Lax sudah cukup ketat sembari tetap mengizinkan navigasi normal antar halaman.
+	return cookie.Config{
+		Domain:   h.cfg.CookieDomain,
+		Secure:   h.cfg.CookieSecure,
+		SameSite: sameSite,
+	}
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -32,7 +48,6 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	result, err := h.service.Login(req, ipAddress, deviceInfo)
 	if err != nil {
-		// Log percobaan login gagal juga, untuk audit security (tanpa user_id karena belum teridentifikasi)
 		h.auditSvc.Log(auditservice.LogParams{
 			Module:    "auth",
 			Action:    "LOGIN_FAILED",
@@ -44,6 +59,21 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	csrfToken, err := middleware.GenerateCSRFToken()
+	if err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrInternal, "failed to generate csrf token"))
+		return
+	}
+
+	cfg := h.cookieConfig()
+	cookie.SetAuthCookies(
+		c, cfg,
+		result.AccessToken, result.RefreshToken,
+		h.cfg.JWTAccessExpiryMinutes*60,
+		h.cfg.JWTRefreshExpiryDays*24*60*60,
+	)
+	cookie.SetCSRFCookie(c, cfg, csrfToken, h.cfg.JWTRefreshExpiryDays*24*60*60)
+
 	userID := result.User.ID
 	h.auditSvc.Log(auditservice.LogParams{
 		UserID:    &userID,
@@ -53,36 +83,57 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		UserAgent: deviceInfo,
 	})
 
-	response.Success(c, http.StatusOK, result, "login successful")
+	response.Success(c, http.StatusOK, dto.LoginResponse{
+		User:      result.User,
+		CSRFToken: csrfToken,
+	}, "login successful")
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	var req dto.RefreshTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, apperrors.New(apperrors.ErrValidation, err.Error()))
+	refreshTokenFromCookie, err := c.Cookie(cookie.RefreshTokenCookie)
+	if err != nil || refreshTokenFromCookie == "" {
+		response.Error(c, apperrors.New(apperrors.ErrUnauthorized, "missing refresh token"))
 		return
 	}
 
-	result, err := h.service.RefreshToken(req)
+	result, err := h.service.RefreshToken(dto.RefreshTokenRequest{RefreshToken: refreshTokenFromCookie})
 	if err != nil {
+		// Refresh gagal (expired/revoked) -> bersihkan cookie agar frontend
+		// tahu harus redirect ke login, bukan terus retry dengan cookie basi.
+		cookie.ClearAuthCookies(c, h.cookieConfig())
 		response.Error(c, err)
 		return
 	}
 
-	response.Success(c, http.StatusOK, result, "token refreshed")
+	csrfToken, err := middleware.GenerateCSRFToken()
+	if err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrInternal, "failed to generate csrf token"))
+		return
+	}
+
+	cfg := h.cookieConfig()
+	cookie.SetAuthCookies(
+		c, cfg,
+		result.AccessToken, result.RefreshToken,
+		h.cfg.JWTAccessExpiryMinutes*60,
+		h.cfg.JWTRefreshExpiryDays*24*60*60,
+	)
+	cookie.SetCSRFCookie(c, cfg, csrfToken, h.cfg.JWTRefreshExpiryDays*24*60*60)
+
+	response.Success(c, http.StatusOK, dto.RefreshTokenResponse{CSRFToken: csrfToken}, "token refreshed")
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	var req dto.LogoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, apperrors.New(apperrors.ErrValidation, err.Error()))
-		return
+	refreshTokenFromCookie, _ := c.Cookie(cookie.RefreshTokenCookie)
+
+	if refreshTokenFromCookie != "" {
+		if err := h.service.Logout(dto.LogoutRequest{RefreshToken: refreshTokenFromCookie}); err != nil {
+			response.Error(c, err)
+			return
+		}
 	}
 
-	if err := h.service.Logout(req); err != nil {
-		response.Error(c, err)
-		return
-	}
+	cookie.ClearAuthCookies(c, h.cookieConfig())
 
 	response.Success(c, http.StatusOK, nil, "logout successful")
 }
@@ -101,6 +152,10 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
+	// Semua sesi lain direvoke server-side; sesi browser saat ini juga
+	// sebaiknya di-clear agar user diarahkan login ulang dengan cookie baru.
+	cookie.ClearAuthCookies(c, h.cookieConfig())
+
 	h.auditSvc.Log(auditservice.LogParams{
 		UserID:    &userID,
 		Module:    "auth",
@@ -109,7 +164,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		UserAgent: c.GetHeader("User-Agent"),
 	})
 
-	response.Success(c, http.StatusOK, nil, "password changed successfully, all other sessions revoked")
+	response.Success(c, http.StatusOK, nil, "password changed successfully, please login again")
 }
 
 func (h *AuthHandler) RevokeAllSessions(c *gin.Context) {
@@ -120,11 +175,13 @@ func (h *AuthHandler) RevokeAllSessions(c *gin.Context) {
 		return
 	}
 
+	cookie.ClearAuthCookies(c, h.cookieConfig())
+
 	h.auditSvc.Log(auditservice.LogParams{
 		UserID: &userID,
 		Module: "auth",
 		Action: "SESSIONS_REVOKED",
 	})
 
-	response.Success(c, http.StatusOK, nil, "all sessions revoked")
+	response.Success(c, http.StatusOK, nil, "all sessions revoked, please login again")
 }

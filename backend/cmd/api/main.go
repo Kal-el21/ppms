@@ -250,7 +250,7 @@ func main() {
 	// notification) do NOT receive auditSvc.
 	// =========================================================================
 
-	authHdl := authhandler.NewAuthHandler(authSvc, auditSvc)
+	authHdl := authhandler.NewAuthHandler(authSvc, auditSvc, cfg)
 	userHdl := userhandler.NewUserHandler(userSvc, cfg, auditSvc)
 	divisionHdl := divisionhandler.NewDivisionHandler(divisionSvc, auditSvc)
 	requestHdl := requesthandler.NewRequestHandler(requestSvc, auditSvc)
@@ -459,6 +459,7 @@ func main() {
 
 	protected := v1.Group("")
 	protected.Use(authMiddleware)
+	protected.Use(middleware.CSRFProtection())
 	{
 		// Auth (self-service, no system-role restriction)
 		protected.POST("/auth/change-password", authHdl.ChangePassword)

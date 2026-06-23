@@ -2,27 +2,37 @@ package middleware
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/Kal-el21/backend/configs"
 	"github.com/Kal-el21/backend/internal/domain/auth/jwt"
 	userrepo "github.com/Kal-el21/backend/internal/domain/user/repository"
+	"github.com/Kal-el21/backend/internal/shared/cookie"
 	apperrors "github.com/Kal-el21/backend/internal/shared/errors"
 	"github.com/Kal-el21/backend/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware validates JWT and injects user_id, system_role, division_id into context.
+// AuthMiddleware membaca access token dari httpOnly cookie (bukan lagi
+// Authorization header). Fallback ke header tetap disediakan untuk
+// kompatibilitas (misal kebutuhan testing via curl/Postman tanpa cookie jar),
+// namun browser production akan selalu memakai jalur cookie.
 func AuthMiddleware(cfg *configs.Config, userRepo userrepo.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			response.Error(c, apperrors.New(apperrors.ErrUnauthorized, "missing or invalid authorization header"))
+		tokenString, err := c.Cookie(cookie.AccessTokenCookie)
+
+		if err != nil || tokenString == "" {
+			// Fallback: Authorization header (dipakai untuk testing manual / API client non-browser)
+			authHeader := c.GetHeader("Authorization")
+			if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+				tokenString = authHeader[7:]
+			}
+		}
+
+		if tokenString == "" {
+			response.Error(c, apperrors.New(apperrors.ErrUnauthorized, "missing access token"))
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
 		claims, err := jwt.ValidateAccessToken(tokenString, cfg.JWTAccessSecret)
 		if err != nil {
@@ -31,7 +41,6 @@ func AuthMiddleware(cfg *configs.Config, userRepo userrepo.UserRepository) gin.H
 			return
 		}
 
-		// Validate user still active (in case deactivated after token issued)
 		user, err := userRepo.FindByID(claims.UserID)
 		if err != nil || !user.IsActive {
 			response.Error(c, apperrors.New(apperrors.ErrUnauthorized, "user account is inactive"))

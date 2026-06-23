@@ -11,7 +11,10 @@ export function useLogin() {
   return useMutation({
     mutationFn: (payload: LoginRequest) => authApi.login(payload),
     onSuccess: (data) => {
-      login(data.access_token, data.refresh_token, data.user);
+      // Token sudah di-set sebagai httpOnly cookie oleh backend (Set-Cookie
+      // header pada response ini) — tidak ada yang perlu disimpan manual
+      // di sisi frontend selain data user untuk ditampilkan di UI.
+      login(data.user);
       navigate("/dashboard");
     },
   });

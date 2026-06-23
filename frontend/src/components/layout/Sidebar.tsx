@@ -1,46 +1,132 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../features/auth/context/AuthContext";
+import { Avatar } from "../ui/avatar";
+import type { ReactNode } from "react";
 
-const navItems = [
-  { label: "Dashboard", path: "/dashboard", roles: ["ADMIN", "USER", "VIEWER"] },
-  { label: "Users", path: "/users", roles: ["ADMIN"] },
-  { label: "Divisions", path: "/divisions", roles: ["ADMIN", "USER", "VIEWER"] },
-  { label: "Project Requests", path: "/project-requests", roles: ["ADMIN", "USER"] },
-  { label: "Projects", path: "/projects", roles: ["ADMIN", "USER", "VIEWER"] },
-  { label: "Dashboard", path: "/dashboard", roles: ["ADMIN", "USER", "VIEWER"] },
-  { label: "Users", path: "/users", roles: ["ADMIN"] },
-  { label: "Divisions", path: "/divisions", roles: ["ADMIN", "USER", "VIEWER"] },
-  { label: "Project Requests", path: "/project-requests", roles: ["ADMIN", "USER"] },
-  { label: "Projects", path: "/projects", roles: ["ADMIN", "USER", "VIEWER"] },
-  { label: "Reporting", path: "/reporting", roles: ["ADMIN", "USER"] },
-  { label: "Audit Logs", path: "/audit-logs", roles: ["ADMIN"] },
+interface NavItem {
+  label: string;
+  path: string;
+  roles: string[];
+  icon: ReactNode;
+  badge?: number;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const icon = (d: string) => (
+  <svg className="h-4 w-4 flex-shrink-0 opacity-85" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d={d} />
+  </svg>
+);
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Overview",
+    items: [
+      {
+        label: "Dashboard",
+        path: "/dashboard",
+        roles: ["ADMIN", "USER", "VIEWER"],
+        icon: (
+          <svg className="h-4 w-4 flex-shrink-0 opacity-85" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="7" height="9" rx="1.5" />
+            <rect x="14" y="3" width="7" height="5" rx="1.5" />
+            <rect x="14" y="12" width="7" height="9" rx="1.5" />
+            <rect x="3" y="16" width="7" height="5" rx="1.5" />
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
+    label: "Workspace",
+    items: [
+      { label: "Divisions", path: "/divisions", roles: ["ADMIN", "USER", "VIEWER"], icon: icon("M3 7l4-4h6l4 4h4v13H3z") },
+      { label: "Project Requests", path: "/project-requests", roles: ["ADMIN", "USER"], icon: icon("M3 7l4-4h6l4 4h4v13H3z") },
+      { label: "Projects", path: "/projects", roles: ["ADMIN", "USER", "VIEWER"], icon: icon("M3 7l4-4h6l4 4h4v13H3z") },
+      { label: "Users", path: "/users", roles: ["ADMIN"], icon: icon("M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z") },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [
+      { label: "Reporting", path: "/reporting", roles: ["ADMIN", "USER"], icon: icon("M3 3v18h18M18 17V9M13 17V5M8 17v-3") },
+      { label: "Audit Logs", path: "/audit-logs", roles: ["ADMIN"], icon: icon("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z") },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
+      { label: "Notification Preferences", path: "/notification-preferences", roles: ["ADMIN", "USER", "VIEWER"], icon: icon("M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0") },
+    ],
+  },
 ];
 
 export default function Sidebar() {
   const { user } = useAuth();
 
   return (
-    <aside className="w-64 border-r bg-white">
-      <div className="flex h-16 items-center border-b px-6">
-        <span className="text-lg font-bold">PPMS</span>
+    <aside className="w-[248px] flex-shrink-0 bg-surface border-r border-border flex flex-col h-screen sticky top-0">
+      <div className="h-14 flex items-center gap-2.5 px-5 border-b border-border flex-shrink-0">
+        <div className="h-[26px] w-[26px] rounded-[7px] flex items-center justify-center text-white font-bold text-[13px] flex-shrink-0 bg-gradient-to-br from-primary-600 to-danger-600">
+          P
+        </div>
+        <span className="font-semibold text-[14.5px] tracking-tight">PPMS</span>
       </div>
-      <nav className="flex flex-col gap-1 p-4">
-        {navItems
-          .filter((item) => !user || item.roles.includes(user.system_role))
-          .map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+
+      <nav className="flex-1 overflow-y-auto py-4">
+        {navGroups.map((group) => {
+          const visibleItems = group.items.filter((item) => !user || item.roles.includes(user.system_role));
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={group.label} className="px-3 mb-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-tertiary px-2 mb-1.5">
+                {group.label}
+              </div>
+              {visibleItems.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `relative flex items-center gap-2.5 px-2.5 py-[7px] mb-px rounded-md text-[13.5px] font-medium transition-colors ${
+                      isActive
+                        ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+                        : "text-ink-secondary hover:bg-surface-secondary hover:text-ink-primary"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <span className="absolute -left-3 top-1.5 bottom-1.5 w-[3px] bg-primary-600 rounded-r-[3px]" />
+                      )}
+                      {item.icon}
+                      {item.label}
+                      {item.badge && (
+                        <span className="ml-auto text-[11px] font-semibold bg-danger-100 text-danger-700 dark:bg-danger-900/40 dark:text-danger-400 px-1.5 py-0.5 rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          );
+        })}
       </nav>
+
+      <div className="border-t border-border p-3 flex items-center gap-2.5 flex-shrink-0">
+        <Avatar name={user?.full_name || "?"} />
+        <div className="min-w-0 leading-tight">
+          <p className="text-[13px] font-semibold truncate m-0">{user?.full_name}</p>
+          <p className="text-[11.5px] text-ink-tertiary m-0">{user?.system_role}</p>
+        </div>
+      </div>
     </aside>
   );
 }

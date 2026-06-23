@@ -12,6 +12,7 @@ import ProjectListPage from "../features/projects/pages/ProjectListPage";
 import ProjectDetailPage from "../features/projects/pages/ProjectDetailPage";
 import AuditLogPage from "@/features/audit/pages/AuditLogPage";
 import ReportingPage from "@/features/reporting/pages/ReportingPage";
+import NotificationPreferencesPage from "@/features/notifications/pages/NotificationPreferencesPage";
 
 
 function AppRouter() {
@@ -31,6 +32,7 @@ function AppRouter() {
             <Route path="/projects" element={<ProjectListPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/reporting" element={<ReportingPage />} />
+            <Route path="/notification-preferences" element={<NotificationPreferencesPage />} />
 
             <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
               <Route path="/users" element={<UsersPage />} />

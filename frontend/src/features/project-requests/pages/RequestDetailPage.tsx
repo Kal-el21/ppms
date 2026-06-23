@@ -78,7 +78,7 @@ export default function RequestDetailPage() {
                 Approve
               </Button>
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={() => review({ action: "REJECTED", comment })}
                 disabled={reviewing}
               >

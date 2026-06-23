@@ -19,8 +19,8 @@ import (
 )
 
 type AuthService interface {
-	Login(req dto.LoginRequest, ipAddress, deviceInfo string) (*dto.LoginResponse, error)
-	RefreshToken(req dto.RefreshTokenRequest) (*dto.RefreshTokenResponse, error)
+	Login(req dto.LoginRequest, ipAddress, deviceInfo string) (*LoginResult, error)
+	RefreshToken(req dto.RefreshTokenRequest) (*RefreshResult, error)
 	Logout(req dto.LogoutRequest) error
 	ChangePassword(userID uint64, req dto.ChangePasswordRequest) error
 	RevokeAllSessions(userID uint64, reason string) error
@@ -41,7 +41,7 @@ func hashToken(token string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (s *authService) Login(req dto.LoginRequest, ipAddress, deviceInfo string) (*dto.LoginResponse, error) {
+func (s *authService) Login(req dto.LoginRequest, ipAddress, deviceInfo string) (*LoginResult, error) {
 	user, err := s.userRepo.FindByEmail(req.Email)
 	if err != nil {
 		if errors.Is(err, gormerrors.ErrRecordNotFound) {
@@ -80,7 +80,7 @@ func (s *authService) Login(req dto.LoginRequest, ipAddress, deviceInfo string) 
 		return nil, err
 	}
 
-	return &dto.LoginResponse{
+	return &LoginResult{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		User: dto.UserSummary{
@@ -93,9 +93,7 @@ func (s *authService) Login(req dto.LoginRequest, ipAddress, deviceInfo string) 
 	}, nil
 }
 
-// RefreshToken implements one-time-use refresh token rotation:
-// token lama divalidasi & direvoke, lalu pasangan token baru diterbitkan.
-func (s *authService) RefreshToken(req dto.RefreshTokenRequest) (*dto.RefreshTokenResponse, error) {
+func (s *authService) RefreshToken(req dto.RefreshTokenRequest) (*RefreshResult, error) {
 	claims, err := jwt.ValidateRefreshToken(req.RefreshToken, s.cfg.JWTRefreshSecret)
 	if err != nil {
 		return nil, domainerrors.ErrInvalidToken
@@ -119,7 +117,6 @@ func (s *authService) RefreshToken(req dto.RefreshTokenRequest) (*dto.RefreshTok
 		return nil, domainerrors.ErrUserInactive
 	}
 
-	// Revoke old session (rotation: one-time use)
 	if err := s.sessionRepo.RevokeByID(session.ID, "rotated"); err != nil {
 		return nil, err
 	}
@@ -146,9 +143,9 @@ func (s *authService) RefreshToken(req dto.RefreshTokenRequest) (*dto.RefreshTok
 		return nil, err
 	}
 
-	_ = claims // claims sudah dipakai untuk validasi signature/expiry
+	_ = claims
 
-	return &dto.RefreshTokenResponse{
+	return &RefreshResult{
 		AccessToken:  newAccessToken,
 		RefreshToken: newRefreshToken,
 	}, nil
@@ -198,3 +195,17 @@ func (s *authService) RevokeAllSessions(userID uint64, reason string) error {
 }
 
 var _ = userentity.User{} // keep import referenced if unused elsewhere
+
+// LoginResult membawa token mentah dari service ke handler. Token TIDAK
+// pernah masuk ke dto.LoginResponse yang dikirim sebagai JSON body — hanya
+// dipakai secara internal agar handler bisa menulis Set-Cookie.
+type LoginResult struct {
+	AccessToken  string
+	RefreshToken string
+	User         dto.UserSummary
+}
+
+type RefreshResult struct {
+	AccessToken  string
+	RefreshToken string
+}

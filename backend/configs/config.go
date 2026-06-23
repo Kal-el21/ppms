@@ -27,6 +27,9 @@ type Config struct {
 	JWTAccessExpiryMinutes int
 	JWTRefreshExpiryDays   int
 
+	CookieDomain string
+	CookieSecure bool
+
 	MinioEndpoint  string
 	MinioAccessKey string
 	MinioSecretKey string
@@ -64,6 +67,9 @@ func Load() *Config {
 		JWTRefreshSecret:       getEnv("JWT_REFRESH_SECRET", "secret"),
 		JWTAccessExpiryMinutes: accessExpiry,
 		JWTRefreshExpiryDays:   refreshExpiry,
+
+		CookieDomain: getEnv("COOKIE_DOMAIN", ""),
+		CookieSecure: getEnv("APP_ENV", "development") == "production",
 
 		MinioEndpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
 		MinioAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),

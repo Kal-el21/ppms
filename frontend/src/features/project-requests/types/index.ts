@@ -36,9 +36,9 @@ export interface RequestApproval {
 
 export interface CreateDraftPayload {
   title: string;
-  description: string;
-  business_goal: string;
-  expected_outcome: string;
+  description?: string;
+  business_goal?: string;
+  expected_outcome?: string;
   estimated_budget: number;
 }
 

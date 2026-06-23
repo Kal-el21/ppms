@@ -1,6 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { ApiResponse } from "../../../types";
-import type { LoginRequest, LoginResponse, RefreshTokenResponse } from "../types";
+import type { LoginRequest, LoginResponse } from "../types";
 
 export const authApi = {
   login: async (payload: LoginRequest) => {
@@ -8,15 +8,9 @@ export const authApi = {
     return res.data.data;
   },
 
-  refreshToken: async (refreshToken: string) => {
-    const res = await axiosInstance.post<ApiResponse<RefreshTokenResponse>>("/auth/refresh", {
-      refresh_token: refreshToken,
-    });
-    return res.data.data;
-  },
-
-  logout: async (refreshToken: string) => {
-    await axiosInstance.post("/auth/logout", { refresh_token: refreshToken });
+  logout: async () => {
+    // Tidak perlu kirim refresh_token lagi — backend membacanya dari cookie.
+    await axiosInstance.post("/auth/logout");
   },
 
   changePassword: async (oldPassword: string, newPassword: string) => {

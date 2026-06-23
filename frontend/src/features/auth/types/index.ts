@@ -6,12 +6,6 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
   user: User;
-}
-
-export interface RefreshTokenResponse {
-  access_token: string;
-  refresh_token: string;
+  csrf_token: string;
 }

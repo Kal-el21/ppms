@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useHandovers, useCreateHandover, useMarkReceived } from "../hooks/useHandovers";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { Badge } from "../../../components/ui/badge";
+import { StatusBadge, getStatusColor } from "../../../components/ui/status-badge";
+import { EmptyState } from "../../../components/shared/EmptyState";
 
 interface HandoverSectionProps {
   projectId: number;
@@ -21,41 +22,57 @@ export default function HandoverSection({ projectId }: HandoverSectionProps) {
       <CardHeader>
         <CardTitle>Handovers</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex gap-2">
+      <CardContent>
+        <div className="flex gap-2 mb-5">
           <Input
-            placeholder="Shipment description"
+            placeholder="Deskripsi pengiriman dokumen..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            className="flex-1"
           />
           <Button
+            variant="primary"
             onClick={() => {
+              if (!description.trim()) return;
               createHandover({ description });
               setDescription("");
             }}
           >
-            Record Shipment
+            Kirim
           </Button>
         </div>
 
-        {handovers?.map((h) => (
-          <div key={h.id} className="flex items-center justify-between border-b pb-2 text-sm">
-            <div>
-              <p>{h.description}</p>
-              <p className="text-xs text-slate-500">{new Date(h.created_at).toLocaleString()}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={h.status === "RECEIVED" ? "default" : h.status === "RETURNED" ? "destructive" : "outline"}>
-                {h.status}
-              </Badge>
-              {h.status === "PENDING" && (
-                <Button size="sm" variant="ghost" onClick={() => markReceived({ handoverId: h.id, version: h.version })}>
-                  Mark Received
-                </Button>
-              )}
-            </div>
+        {!handovers || handovers.length === 0 ? (
+          <EmptyState
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+              </svg>
+            }
+            title="Belum ada handover"
+          />
+        ) : (
+          <div className="flex flex-col">
+            {handovers.map((h) => (
+              <div key={h.id} className="flex items-center justify-between gap-3 py-3 border-b border-border last:border-b-0">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium m-0 truncate">{h.description}</p>
+                  <p className="text-[11.5px] text-ink-tertiary m-0 mt-0.5">
+                    {new Date(h.created_at).toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <StatusBadge color={getStatusColor(h.status)}>{h.status}</StatusBadge>
+                  {h.status === "PENDING" && (
+                    <Button size="sm" variant="ghost" onClick={() => markReceived({ handoverId: h.id, version: h.version })}>
+                      Tandai diterima
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </CardContent>
     </Card>
   );

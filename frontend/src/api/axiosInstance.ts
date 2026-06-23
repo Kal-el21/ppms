@@ -1,26 +1,40 @@
-import { getErrorMessage } from "@/lib/errorMessages";
 import axios from "axios";
+import { getErrorMessage } from "../lib/errorMessages";
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
+  // withCredentials WAJIB true agar browser menyertakan httpOnly cookie
+  // (access token, refresh token, csrf token) di setiap request — tanpa ini,
+  // cookie tidak pernah terkirim sama sekali meskipun ada di browser.
+  withCredentials: true,
 });
 
+function getCSRFTokenFromCookie(): string | null {
+  // CSRF cookie SENGAJA tidak httpOnly (lihat backend cookie.go), jadi bisa
+  // dibaca di sini untuk disertakan sebagai header di setiap request mutasi.
+  const match = document.cookie.match(/(?:^|;\s*)ppms_csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const method = config.method?.toUpperCase();
+  if (method && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const csrfToken = getCSRFTokenFromCookie();
+    if (csrfToken) {
+      config.headers["X-CSRF-Token"] = csrfToken;
+    }
   }
   return config;
 });
 
 let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
+let refreshSubscribers: (() => void)[] = [];
 
-function onRefreshed(token: string) {
-  refreshSubscribers.forEach((callback) => callback(token));
+function onRefreshed() {
+  refreshSubscribers.forEach((callback) => callback());
   refreshSubscribers = [];
 }
 
@@ -29,11 +43,14 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.data?.code) {
+      error.friendlyMessage = getErrorMessage(error.response.data.code, error.response.data.message);
+    }
+
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/")) {
       if (isRefreshing) {
         return new Promise((resolve) => {
-          refreshSubscribers.push((token: string) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
+          refreshSubscribers.push(() => {
             resolve(axiosInstance(originalRequest));
           });
         });
@@ -42,44 +59,26 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem("refresh_token");
-      if (!refreshToken) {
-        localStorage.clear();
-        window.location.href = "/login";
-        if (error.response?.data?.code) {
-          error.friendlyMessage = getErrorMessage(error.response.data.code, error.response.data.message);
-        }
-        return Promise.reject(error);
-      }
-
       try {
-        const res = await axios.post(
+        // Refresh token dikirim otomatis via cookie (path-scoped ke /api/v1/auth),
+        // tidak perlu dikirim manual di body seperti versi localStorage sebelumnya.
+        await axios.post(
           `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1"}/auth/refresh`,
-          { refresh_token: refreshToken }
+          {},
+          { withCredentials: true }
         );
 
-        const { access_token, refresh_token } = res.data.data;
-        localStorage.setItem("access_token", access_token);
-        localStorage.setItem("refresh_token", refresh_token);
-
         isRefreshing = false;
-        onRefreshed(access_token);
+        onRefreshed();
 
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;
-        localStorage.clear();
         window.location.href = "/login";
-        if (error.response?.data?.code) {
-          error.friendlyMessage = getErrorMessage(error.response.data.code, error.response.data.message);
-        }
         return Promise.reject(refreshError);
       }
     }
-    if (error.response?.data?.code) {
-      error.friendlyMessage = getErrorMessage(error.response.data.code, error.response.data.message);
-    }
+
     return Promise.reject(error);
   }
 );

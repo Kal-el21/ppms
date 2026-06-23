@@ -1,43 +1,70 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import axiosInstance from "../../../api/axiosInstance";
 import type { User } from "../../../types";
 
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (accessToken: string, refreshToken: string, user: User) => void;
+  login: (user: User, csrfToken: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// Catatan arsitektur: setelah migrasi ke httpOnly cookie, frontend TIDAK
+// LAGI menyimpan access/refresh token sama sekali — baik di localStorage
+// maupun di memory. Browser yang mengelola cookie sepenuhnya. Yang disimpan
+// di sini hanya `user` (data non-sensitif untuk UI) yang di-cache di
+// sessionStorage agar refresh halaman tidak langsung flash ke halaman
+// login sebelum sempat verifikasi sesi ke backend.
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const accessToken = localStorage.getItem("access_token");
+    // Saat aplikasi pertama kali dimuat (hard refresh), tidak ada cara
+    // membaca httpOnly cookie dari JS untuk tahu "apakah user masih login".
+    // Solusinya: panggil endpoint yang butuh auth (mis. /auth/refresh atau
+    // endpoint profile) dan biarkan backend yang menentukan validitas cookie.
+    const restoreSession = async () => {
+      const cachedUser = sessionStorage.getItem("ppms_user");
+      if (cachedUser) {
+        try {
+          setUser(JSON.parse(cachedUser));
+        } catch {
+          sessionStorage.removeItem("ppms_user");
+        }
+      }
 
-    if (storedUser && accessToken) {
-      setUser(JSON.parse(storedUser));
-    }
+      try {
+        const res = await axiosInstance.post("/auth/refresh");
+        // refresh berhasil berarti cookie masih valid; backend sudah
+        // menerbitkan cookie+csrf baru otomatis lewat Set-Cookie.
+        if (res.data?.data?.csrf_token) {
+          sessionStorage.setItem("ppms_csrf_ready", "1");
+        }
+      } catch {
+        // Cookie tidak valid/sudah expired — bersihkan cache user lama
+        setUser(null);
+        sessionStorage.removeItem("ppms_user");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    setIsLoading(false);
+    restoreSession();
   }, []);
 
-  const login = (accessToken: string, refreshToken: string, userData: User) => {
-    localStorage.setItem("access_token", accessToken);
-    localStorage.setItem("refresh_token", refreshToken);
-    localStorage.setItem("user", JSON.stringify(userData));
+  const login = (userData: User) => {
     setUser(userData);
+    sessionStorage.setItem("ppms_user", JSON.stringify(userData));
   };
 
   const logout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user");
     setUser(null);
+    sessionStorage.removeItem("ppms_user");
+    sessionStorage.removeItem("ppms_csrf_ready");
   };
 
   return (
