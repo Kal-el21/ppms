@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useCreateDraft, useRequestDetail, useUpdateDraft } from "../hooks/useRequests";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
+import { Textarea } from "../../../components/ui/textarea";
 import { Label } from "../../../components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
 import { PageHeader } from "../../../components/shared/PageHeader";
@@ -79,17 +80,17 @@ export default function RequestFormPage() {
 
             <div>
               <Label htmlFor="description">Deskripsi</Label>
-              <Input id="description" placeholder="Jelaskan ruang lingkup project secara singkat" {...register("description")} />
+              <Textarea id="description" placeholder="Jelaskan ruang lingkup project secara singkat" {...register("description")} />
             </div>
 
             <div>
               <Label htmlFor="business_goal">Tujuan Bisnis</Label>
-              <Input id="business_goal" placeholder="cth. Meningkatkan efisiensi operasional 20%" {...register("business_goal")} />
+              <Textarea id="business_goal" placeholder="cth. Meningkatkan efisiensi operasional 20%" {...register("business_goal")} />
             </div>
 
             <div>
               <Label htmlFor="expected_outcome">Hasil yang Diharapkan</Label>
-              <Input id="expected_outcome" placeholder="cth. Sistem CRM baru live dan stabil" {...register("expected_outcome")} />
+              <Textarea id="expected_outcome" placeholder="cth. Sistem CRM baru live dan stabil" {...register("expected_outcome")} />
             </div>
 
             <div>

@@ -5,6 +5,8 @@ import { StatusBadge } from "../../../components/ui/status-badge";
 import { Input } from "../../../components/ui/input";
 import { PageHeader } from "../../../components/shared/PageHeader";
 import { EmptyState } from "../../../components/shared/EmptyState";
+import { Pagination } from "../../../components/ui/pagination";
+import { TableSkeleton } from "../../../components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -14,8 +16,6 @@ import {
   TableRow,
 } from "../../../components/ui/table";
 
-// Mapping module ke warna badge, supaya scannable secara visual
-// saat melihat ratusan baris log sekaligus.
 const moduleColor: Record<string, "blue" | "red" | "green" | "amber" | "gray"> = {
   auth: "blue",
   user: "blue",
@@ -36,11 +36,15 @@ function actionVariant(action: string): "blue" | "red" | "green" | "amber" | "gr
   return "blue";
 }
 
+const LIMIT = 20;
+
 export default function AuditLogPage() {
   const [module, setModule] = useState("");
+  const [page, setPage] = useState(1);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["audit-logs", module],
-    queryFn: () => auditApi.getList(1, 50, module || undefined),
+    queryKey: ["audit-logs", module, page],
+    queryFn: () => auditApi.getList(page, LIMIT, module || undefined),
   });
 
   return (
@@ -49,14 +53,17 @@ export default function AuditLogPage() {
 
       <div className="mb-5 max-w-xs">
         <Input
-          placeholder="Filter berdasarkan module (cth. auth, budget)"
+          placeholder="Filter module (cth. auth, budget)"
           value={module}
-          onChange={(e) => setModule(e.target.value)}
+          onChange={(e) => {
+            setModule(e.target.value);
+            setPage(1);
+          }}
         />
       </div>
 
       {isLoading ? (
-        <div className="text-ink-secondary text-sm">Memuat audit logs...</div>
+        <TableSkeleton rows={8} cols={5} />
       ) : !data || data.data.length === 0 ? (
         <EmptyState
           icon={
@@ -69,36 +76,44 @@ export default function AuditLogPage() {
           description={module ? `Tidak ada aktivitas untuk module "${module}".` : undefined}
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Module</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Entity</TableHead>
-              <TableHead>User ID</TableHead>
-              <TableHead>Timestamp</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.data.map((log) => (
-              <TableRow key={log.id}>
-                <TableCell>
-                  <StatusBadge color={moduleColor[log.module] || "gray"}>{log.module}</StatusBadge>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge color={actionVariant(log.action)}>{log.action}</StatusBadge>
-                </TableCell>
-                <TableCell className="text-ink-secondary">
-                  {log.entity_type} {log.entity_id ? `#${log.entity_id}` : ""}
-                </TableCell>
-                <TableCell className="text-ink-secondary">{log.user_id ?? "—"}</TableCell>
-                <TableCell className="text-ink-tertiary">
-                  {new Date(log.created_at).toLocaleString("id-ID")}
-                </TableCell>
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Module</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Entity</TableHead>
+                <TableHead>User ID</TableHead>
+                <TableHead>Timestamp</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {data.data.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell>
+                    <StatusBadge color={moduleColor[log.module] || "gray"}>{log.module}</StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge color={actionVariant(log.action)}>{log.action}</StatusBadge>
+                  </TableCell>
+                  <TableCell className="text-ink-secondary">
+                    {log.entity_type} {log.entity_id ? `#${log.entity_id}` : ""}
+                  </TableCell>
+                  <TableCell className="text-ink-secondary">{log.user_id ?? "—"}</TableCell>
+                  <TableCell className="text-ink-tertiary">
+                    {new Date(log.created_at).toLocaleString("id-ID")}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Pagination
+            page={page}
+            total={data.meta.total}
+            limit={LIMIT}
+            onPageChange={setPage}
+          />
+        </>
       )}
     </div>
   );

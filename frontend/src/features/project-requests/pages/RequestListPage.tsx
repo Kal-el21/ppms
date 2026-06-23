@@ -12,12 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "../../../components/ui/table";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function RequestListPage() {
   const navigate = useNavigate();
   const { data, isLoading } = useRequestList();
 
-  if (isLoading) return <div className="text-ink-secondary text-sm">Memuat requests...</div>;
+  if (isLoading) return <TableSkeleton rows={5} cols={4} />;
 
   return (
     <div>

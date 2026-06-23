@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../../components/ui/table";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 interface ProjectListErrorBoundaryProps {
   children: ReactNode;
@@ -75,7 +76,16 @@ function ProjectListContent() {
   const navigate = useNavigate();
   const { data, isLoading } = useProjectList();
 
-  if (isLoading) return <div className="text-ink-secondary text-sm">Memuat projects...</div>;
+  if (isLoading) {
+    return (
+      <div>
+        <div className="flex justify-between mb-6">
+          <div className="h-7 w-32 bg-surface-tertiary rounded-md animate-pulse" />
+        </div>
+        <TableSkeleton rows={6} cols={3} />
+      </div>
+    );
+  }
 
   return (
     <div>

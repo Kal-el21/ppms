@@ -124,3 +124,18 @@ body {
   background: var(--border-strong);
   border-radius: 4px;
 }
+
+@keyframes slide-in-from-bottom {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation: slide-in-from-bottom 0.15s ease-out;
+}

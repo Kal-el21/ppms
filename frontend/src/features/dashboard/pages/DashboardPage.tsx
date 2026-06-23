@@ -4,13 +4,26 @@ import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui
 import { MetricCard } from "../../../components/ui/metric-card";
 import { PageHeader } from "../../../components/shared/PageHeader";
 import { Button } from "../../../components/ui/button";
+import { CardSkeleton, MetricsSkeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { data, isLoading } = useDashboardSummary();
 
-  if (isLoading || !data) {
-    return <div className="text-ink-secondary text-sm">Memuat dashboard...</div>;
+  if (isLoading) {
+    return (
+      <div>
+        <div className="mb-6">
+          <div className="h-7 w-48 bg-surface-tertiary rounded-md animate-pulse mb-2" />
+          <div className="h-4 w-64 bg-surface-tertiary rounded-md animate-pulse" />
+        </div>
+        <MetricsSkeleton />
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 mt-7">
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      </div>
+    );
   }
 
   return (

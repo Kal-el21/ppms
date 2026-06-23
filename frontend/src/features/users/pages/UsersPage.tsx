@@ -5,6 +5,8 @@ import { Avatar } from "../../../components/ui/avatar";
 import { StatusBadge } from "../../../components/ui/status-badge";
 import { PageHeader } from "../../../components/shared/PageHeader";
 import { EmptyState } from "../../../components/shared/EmptyState";
+import { Pagination } from "../../../components/ui/pagination";
+import { TableSkeleton } from "../../../components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -21,11 +23,10 @@ const roleColor: Record<string, "blue" | "amber" | "gray"> = {
 };
 
 export default function UsersPage() {
-  const [page] = useState(1);
-  const { data, isLoading } = useUsers(page);
+  const [page, setPage] = useState(1);
+  const limit = 20;
+  const { data, isLoading } = useUsers(page, limit);
   const { mutate: deactivate } = useDeactivateUser();
-
-  if (isLoading) return <div className="text-ink-secondary text-sm">Memuat users...</div>;
 
   return (
     <div>
@@ -42,7 +43,9 @@ export default function UsersPage() {
         }
       />
 
-      {!data || data.data.length === 0 ? (
+      {isLoading ? (
+        <TableSkeleton rows={8} cols={5} />
+      ) : !data || data.data.length === 0 ? (
         <EmptyState
           icon={
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -52,48 +55,56 @@ export default function UsersPage() {
           title="Belum ada user"
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead style={{ width: 100 }}></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.data.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <Avatar name={u.full_name} size="sm" />
-                    <span className="font-medium text-ink-primary">{u.full_name}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-ink-secondary">{u.email}</TableCell>
-                <TableCell>
-                  <StatusBadge color={roleColor[u.system_role] || "gray"}>{u.system_role}</StatusBadge>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge color={u.is_active ? "green" : "red"}>
-                    {u.is_active ? "Active" : "Inactive"}
-                  </StatusBadge>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deactivate(u.id)}
-                    disabled={!u.is_active}
-                  >
-                    Nonaktifkan
-                  </Button>
-                </TableCell>
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead style={{ width: 120 }}></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {data.data.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar name={u.full_name} size="sm" />
+                      <span className="font-medium text-ink-primary">{u.full_name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-ink-secondary">{u.email}</TableCell>
+                  <TableCell>
+                    <StatusBadge color={roleColor[u.system_role] || "gray"}>{u.system_role}</StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge color={u.is_active ? "green" : "red"}>
+                      {u.is_active ? "Active" : "Inactive"}
+                    </StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deactivate(u.id)}
+                      disabled={!u.is_active}
+                    >
+                      Nonaktifkan
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Pagination
+            page={page}
+            total={data.meta.total}
+            limit={limit}
+            onPageChange={setPage}
+          />
+        </>
       )}
     </div>
   );
