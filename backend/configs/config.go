@@ -36,6 +36,13 @@ type Config struct {
 	MinioBucket    string
 	MinioUseSSL    bool
 
+	// Tambahkan ke struct Config:
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
+
 	BcryptCost int
 }
 
@@ -48,6 +55,7 @@ func Load() *Config {
 	refreshExpiry, _ := strconv.Atoi(getEnv("JWT_REFRESH_EXPIRY_DAYS", "7"))
 	bcryptCost, _ := strconv.Atoi(getEnv("BCRYPT_COST", "12"))
 	minioSSL, _ := strconv.ParseBool(getEnv("MINIO_USE_SSL", "false"))
+	smtpPort, _ := strconv.Atoi(getEnv("SMTP_PORT", "587"))
 
 	return &Config{
 		AppEnv:  getEnv("APP_ENV", "development"),
@@ -76,6 +84,12 @@ func Load() *Config {
 		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
 		MinioBucket:    getEnv("MINIO_BUCKET", "ppms-attachments"),
 		MinioUseSSL:    minioSSL,
+
+		SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort:     smtpPort,
+		SMTPUser:     getEnv("SMTP_USER", ""),
+		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:     getEnv("SMTP_FROM", ""),
 
 		BcryptCost: bcryptCost,
 	}

@@ -1,8 +1,9 @@
 import { useParams } from "react-router-dom";
 import { useState } from "react";
+import type { TaskPriority } from "../../tasks/types";
 import { useProjectDetail, useProjectMembers, useChangeProjectStatus } from "../hooks/useProjects";
-import { useMilestones, useCreateMilestone } from "../../milestones/hooks/useMilestones";
-import { useTasks, useCreateTask, useChangeTaskStatus, useUpdateTaskProgress } from "../../tasks/hooks/useTasks";
+import { useMilestones, useCreateMilestone, type CreateMilestonePayload } from "../../milestones/hooks/useMilestones";
+import { useTasks, useCreateTask, useChangeTaskStatus, useUpdateTaskProgress, type CreateTaskPayload } from "../../tasks/hooks/useTasks";
 
 import { StatusBadge, getStatusColor } from "../../../components/ui/status-badge";
 import { HealthBar } from "../../../components/ui/health-bar";
@@ -17,6 +18,8 @@ import { EmptyState } from "../../../components/shared/EmptyState";
 import BudgetSection from "../../budgets/components/BudgetSection";
 import HandoverSection from "../../handovers/components/HandoverSection";
 import FileUploadCard from "../../../components/shared/FileUploadCard";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 
 const icon = (d: string, size = 22) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -39,8 +42,42 @@ export default function ProjectDetailPage() {
   const { mutate: changeTaskStatus } = useChangeTaskStatus(projectId);
   const { mutate: updateProgress } = useUpdateTaskProgress(projectId);
 
-  const [milestoneName, setMilestoneName] = useState("");
-  const [taskTitle, setTaskTitle] = useState("");
+  // Update state form milestone — semua string agar konsisten dengan API & DateInput
+  const [milestoneForm, setMilestoneForm] = useState<CreateMilestonePayload>({
+    name: "",
+    description: "",
+    start_date: null,
+    end_date: null,
+  });
+
+  const [taskForm, setTaskForm] = useState<CreateTaskPayload>({
+    title: "",
+    description: "",
+    priority: "MEDIUM",
+    due_date: null,
+  });
+
+  const handleCreateMilestone = () => {
+    if (!milestoneForm.name.trim()) return;
+    createMilestone({
+      name: milestoneForm.name,
+      description: milestoneForm.description,
+      start_date: milestoneForm.start_date || undefined,
+      end_date: milestoneForm.end_date || undefined,
+    });
+    setMilestoneForm({ name: "", description: "", start_date: null, end_date: null });
+  };
+
+  const handleCreateTask = () => {
+    if (!taskForm.title.trim()) return;
+    createTask({
+      title: taskForm.title,
+      description: taskForm.description,
+      priority: taskForm.priority,
+      due_date: taskForm.due_date || undefined,
+    });
+    setTaskForm({ title: "", description: "", priority: "MEDIUM", due_date: null });
+  };
 
   if (isLoading || !project) {
     return <div className="text-ink-secondary text-sm">Memuat project...</div>;
@@ -158,24 +195,27 @@ export default function ProjectDetailPage() {
                   <CardTitle>Milestones</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-2 mb-5">
-                    <Input
-                      placeholder="Nama milestone baru..."
-                      value={milestoneName}
-                      onChange={(e) => setMilestoneName(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="primary"
-                      onClick={() => {
-                        if (!milestoneName.trim()) return;
-                        createMilestone({ name: milestoneName, description: "" });
-                        setMilestoneName("");
-                      }}
-                    >
-                      Tambah
-                    </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-5">
+                    <div>
+                      <Label>Nama milestone</Label>
+                      <Input placeholder="cth. Phase 1 — Discovery" value={milestoneForm.name} onChange={(e) => setMilestoneForm({ ...milestoneForm, name: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Deskripsi</Label>
+                      <Input placeholder="Opsional" value={milestoneForm.description} onChange={(e) => setMilestoneForm({ ...milestoneForm, description: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Tanggal mulai</Label>
+                      <Input type="date" value={milestoneForm.start_date ?? ""} onChange={(e) => setMilestoneForm({ ...milestoneForm, start_date: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Tanggal selesai</Label>
+                      <Input type="date" value={milestoneForm.end_date ?? ""} onChange={(e) => setMilestoneForm({ ...milestoneForm, end_date: e.target.value })} />
+                    </div>
                   </div>
+                  <Button variant="primary" onClick={handleCreateMilestone}>
+                    Tambah milestone
+                  </Button>
 
                   {!milestones || milestones.length === 0 ? (
                     <EmptyState
@@ -210,24 +250,36 @@ export default function ProjectDetailPage() {
                   <CardTitle>Tasks</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-2 mb-5">
-                    <Input
-                      placeholder="Judul task baru..."
-                      value={taskTitle}
-                      onChange={(e) => setTaskTitle(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="primary"
-                      onClick={() => {
-                        if (!taskTitle.trim()) return;
-                        createTask({ title: taskTitle, priority: "MEDIUM" });
-                        setTaskTitle("");
-                      }}
-                    >
-                      Tambah
-                    </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-5">
+                    <div>
+                      <Label>Judul task</Label>
+                      <Input placeholder="cth. Setup CI/CD pipeline" value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Priority</Label>
+                      <Select
+                        value={taskForm.priority}
+                        onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value as TaskPriority })}
+                        options={[
+                          { value: "LOW", label: "Low" },
+                          { value: "MEDIUM", label: "Medium" },
+                          { value: "HIGH", label: "High" },
+                          { value: "URGENT", label: "Urgent" },
+                        ]}
+                      />
+                    </div>
+                    <div>
+                      <Label>Deskripsi</Label>
+                      <Input placeholder="Opsional" value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Due date</Label>
+                      <Input type="date" value={taskForm.due_date ?? ""} onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })} />
+                    </div>
                   </div>
+                  <Button variant="primary" onClick={handleCreateTask}>
+                    Tambah task
+                  </Button>
 
                   {!tasks || tasks.length === 0 ? (
                     <EmptyState

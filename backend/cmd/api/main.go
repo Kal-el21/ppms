@@ -19,6 +19,7 @@ import (
 	authhandler "github.com/Kal-el21/backend/internal/domain/auth/handler"
 	authrepo "github.com/Kal-el21/backend/internal/domain/auth/repository"
 	authservice "github.com/Kal-el21/backend/internal/domain/auth/service"
+	emailpkg "github.com/Kal-el21/backend/internal/infrastructure/email"
 
 	// ── Division ─────────────────────────────────────────────────────────────
 	divisionhandler "github.com/Kal-el21/backend/internal/domain/division/handler"
@@ -134,6 +135,9 @@ func main() {
 
 	// Auth
 	sessionRepository := authrepo.NewSessionRepository(db)
+	otpRepository := authrepo.NewOTPRepository(db)
+	otpSessionStore := authservice.NewOTPSessionStore()
+	emailSvc := emailpkg.NewEmailService(cfg)
 
 	// User & Division
 	userRepository := userrepo.NewUserRepository(db)
@@ -200,7 +204,7 @@ func main() {
 	// =========================================================================
 
 	// Auth / User / Division
-	authSvc := authservice.NewAuthService(userRepository, sessionRepository, cfg)
+	authSvc := authservice.NewAuthService(userRepository, sessionRepository, otpRepository, otpSessionStore, emailSvc, cfg)
 	userSvc := userservice.NewUserService(userRepository)
 	divisionSvc := divisionservice.NewDivisionService(divisionRepository)
 
@@ -235,7 +239,12 @@ func main() {
 	handoverSvc := handoverservice.NewHandoverService(handoverRepository, eventBus)
 
 	// Notification
-	notificationSvc := notificationservice.NewNotificationService(notificationRepository, preferenceRepository)
+	notificationSvc := notificationservice.NewNotificationService(
+		notificationRepository,
+		preferenceRepository,
+		emailSvc,       // EmailSender
+		userRepository, // UserEmailProvider
+	)
 	preferenceSvc := notificationservice.NewPreferenceService(preferenceRepository)
 
 	// Dashboard / Reporting / Search
@@ -251,7 +260,7 @@ func main() {
 	// =========================================================================
 
 	authHdl := authhandler.NewAuthHandler(authSvc, auditSvc, cfg)
-	userHdl := userhandler.NewUserHandler(userSvc, cfg, auditSvc)
+	userHdl := userhandler.NewUserHandler(userSvc, cfg, auditSvc, minioClient)
 	divisionHdl := divisionhandler.NewDivisionHandler(divisionSvc, auditSvc)
 	requestHdl := requesthandler.NewRequestHandler(requestSvc, auditSvc)
 	projectHdl := projecthandler.NewProjectHandler(projectSvc, auditSvc)
@@ -450,6 +459,8 @@ func main() {
 	auth := v1.Group("/auth")
 	{
 		auth.POST("/login", loginRateLimiter.LimitByIP(), authHdl.Login)
+		auth.POST("/verify-otp", authHdl.VerifyOTP)
+		auth.POST("/resend-otp", loginRateLimiter.LimitByIP(), authHdl.ResendOTP)
 		auth.POST("/refresh", refreshRateLimiter.LimitByIP(), authHdl.RefreshToken)
 		auth.POST("/logout", authHdl.Logout)
 	}
@@ -464,6 +475,13 @@ func main() {
 		// Auth (self-service, no system-role restriction)
 		protected.POST("/auth/change-password", authHdl.ChangePassword)
 		protected.POST("/auth/revoke-sessions", authHdl.RevokeAllSessions)
+
+		//Profile & Settings (self-service, no system-role restriction)
+		protected.GET("/me", userHdl.GetMe)
+		protected.PUT("/me", userHdl.UpdateProfile)
+		protected.POST("/me/photo", userHdl.UploadProfilePhoto)
+		protected.POST("/me/toggle-2fa", userHdl.Toggle2FA)
+		protected.POST("/me/toggle-email-notification", userHdl.ToggleEmailNotification)
 
 		// ── Division ─────────────────────────────────────────────────────────
 		divisions := protected.Group("/divisions")

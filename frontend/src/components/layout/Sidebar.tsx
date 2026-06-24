@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../features/auth/context/AuthContext";
-import { Avatar } from "../ui/avatar";
 import type { ReactNode } from "react";
+import UserMenu from "./UserMenu";
 
 interface NavItem {
   label: string;
@@ -120,13 +120,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-border p-3 flex items-center gap-2.5 flex-shrink-0">
-        <Avatar name={user?.full_name || "?"} />
-        <div className="min-w-0 leading-tight">
-          <p className="text-[13px] font-semibold truncate m-0">{user?.full_name}</p>
-          <p className="text-[11.5px] text-ink-tertiary m-0">{user?.system_role}</p>
-        </div>
-      </div>
+      <UserMenu />
     </aside>
   );
 }

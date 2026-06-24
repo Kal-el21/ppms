@@ -14,6 +14,7 @@ type UserRepository interface {
 	Update(user *entity.User) error
 	Deactivate(id uint64) error
 	Restore(id uint64) error
+	UpdateField(id uint64, field string, value interface{}) error
 }
 
 type userRepository struct {
@@ -90,4 +91,10 @@ func (r *userRepository) Restore(id uint64) error {
 			"deleted_at": nil,
 			"deleted_by": nil,
 		}).Error
+}
+
+func (r *userRepository) UpdateField(id uint64, field string, value interface{}) error {
+	return r.db.Model(&entity.User{}).
+		Where("id = ?", id).
+		Update(field, value).Error
 }

@@ -1,25 +1,9 @@
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../features/auth/context/AuthContext";
-import { authApi } from "../../features/auth/api/authApi";
 import { useTheme } from "../../lib/theme";
-import { Button } from "../ui/button";
 import GlobalSearchBar from "./GlobalSearchBar";
 import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
-  const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-  try {
-    await authApi.logout();
-  } catch {
-    // ignore, proceed to clear local state anyway
-  }
-  logout();
-  navigate("/login");
-};
 
   return (
     <header className="h-14 flex-shrink-0 bg-surface border-b border-border flex items-center justify-between px-6 sticky top-0 z-10">
@@ -53,10 +37,6 @@ export default function Navbar() {
         </button>
 
         <NotificationBell />
-
-        <Button variant="outline" size="sm" onClick={handleLogout}>
-          Logout
-        </Button>
       </div>
     </header>
   );

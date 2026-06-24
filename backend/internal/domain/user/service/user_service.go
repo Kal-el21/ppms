@@ -20,6 +20,10 @@ type UserService interface {
 	AssignRole(id uint64, req dto.AssignRoleRequest) (*entity.User, error)
 	Deactivate(id uint64, deletedBy uint64) error
 	Restore(id uint64) error
+	UpdateProfile(id uint64, req dto.UpdateProfileRequest) (*entity.User, error)
+	UpdateProfilePhoto(id uint64, photoURL string) error
+	Toggle2FA(id uint64, enabled bool) error
+	ToggleEmailNotification(id uint64, enabled bool) error
 }
 
 type userService struct {
@@ -137,4 +141,32 @@ func (s *userService) Deactivate(id uint64, deletedBy uint64) error {
 
 func (s *userService) Restore(id uint64) error {
 	return s.repo.Restore(id)
+}
+
+func (s *userService) UpdateProfile(id uint64, req dto.UpdateProfileRequest) (*entity.User, error) {
+	user, err := s.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	user.FullName = req.FullName
+	user.Version++
+
+	if err := s.repo.Update(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (s *userService) UpdateProfilePhoto(id uint64, photoURL string) error {
+	return s.repo.UpdateField(id, "profile_photo_url", photoURL)
+}
+
+func (s *userService) Toggle2FA(id uint64, enabled bool) error {
+	return s.repo.UpdateField(id, "two_fa_enabled", enabled)
+}
+
+func (s *userService) ToggleEmailNotification(id uint64, enabled bool) error {
+	return s.repo.UpdateField(id, "email_notification_enabled", enabled)
 }

@@ -1,32 +1,60 @@
 import { useState } from "react";
-import { useUsers, useDeactivateUser } from "../hooks/useUsers";
+import { useUsers, useDeactivateUser, useCreateUser } from "../hooks/useUsers";
+import { useDivisions } from "../../divisions/hooks/useDivisions";
 import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import { Select } from "../../../components/ui/select";
 import { Avatar } from "../../../components/ui/avatar";
 import { StatusBadge } from "../../../components/ui/status-badge";
 import { PageHeader } from "../../../components/shared/PageHeader";
 import { EmptyState } from "../../../components/shared/EmptyState";
 import { Pagination } from "../../../components/ui/pagination";
 import { TableSkeleton } from "../../../components/ui/skeleton";
+import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "../../../components/ui/table";
 
 const roleColor: Record<string, "blue" | "amber" | "gray"> = {
-  ADMIN: "blue",
-  USER: "amber",
-  VIEWER: "gray",
+  ADMIN: "blue", USER: "amber", VIEWER: "gray",
 };
+
+interface UserFormData {
+  full_name: string;
+  email: string;
+  password: string;
+  system_role: string;
+  division_id: string;
+}
 
 export default function UsersPage() {
   const [page, setPage] = useState(1);
   const limit = 20;
   const { data, isLoading } = useUsers(page, limit);
+  const { data: divisions } = useDivisions();
   const { mutate: deactivate } = useDeactivateUser();
+  const { mutate: createUser, isPending: creating } = useCreateUser();
+
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<UserFormData>({
+    full_name: "", email: "", password: "", system_role: "USER", division_id: "",
+  });
+
+  const divisionMap = Object.fromEntries((divisions || []).map((d) => [String(d.id), d.name]));
+
+  const handleCreate = () => {
+    createUser(
+      {
+        full_name: form.full_name,
+        email: form.email,
+        password: form.password,
+        system_role: form.system_role,
+        division_id: form.division_id ? Number(form.division_id) : null,
+      },
+      { onSuccess: () => { setShowForm(false); setForm({ full_name: "", email: "", password: "", system_role: "USER", division_id: "" }); } }
+    );
+  };
 
   return (
     <div>
@@ -34,7 +62,7 @@ export default function UsersPage() {
         title="User Management"
         subtitle={`${data?.meta.total ?? 0} user terdaftar`}
         actions={
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => setShowForm((v) => !v)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14M5 12h14" />
             </svg>
@@ -43,15 +71,60 @@ export default function UsersPage() {
         }
       />
 
+      {showForm && (
+        <Card className="mb-5 border-primary-200 dark:border-primary-900/50">
+          <CardHeader><CardTitle>Tambah User Baru</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+              <div>
+                <Label>Nama lengkap</Label>
+                <Input placeholder="cth. Budi Santoso" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input type="email" placeholder="budi@perusahaan.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </div>
+              <div>
+                <Label>Password awal</Label>
+                <Input type="password" placeholder="Min. 8 karakter" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              </div>
+              <div>
+                <Label>System Role</Label>
+                <Select
+                  value={form.system_role}
+                  onChange={(e) => setForm({ ...form, system_role: e.target.value })}
+                  options={[
+                    { value: "ADMIN", label: "Admin" },
+                    { value: "USER", label: "User" },
+                    { value: "VIEWER", label: "Viewer" },
+                  ]}
+                />
+              </div>
+              <div>
+                <Label>Division</Label>
+                <Select
+                  value={form.division_id}
+                  onChange={(e) => setForm({ ...form, division_id: e.target.value })}
+                  placeholder="Pilih divisi (opsional)"
+                  options={(divisions || []).map((d) => ({ value: String(d.id), label: d.name }))}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="primary" onClick={handleCreate} disabled={creating}>
+                {creating ? "Menyimpan..." : "Simpan"}
+              </Button>
+              <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading ? (
-        <TableSkeleton rows={8} cols={5} />
+        <TableSkeleton rows={8} cols={6} />
       ) : !data || data.data.length === 0 ? (
         <EmptyState
-          icon={
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z" />
-            </svg>
-          }
+          icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z" /></svg>}
           title="Belum ada user"
         />
       ) : (
@@ -62,6 +135,7 @@ export default function UsersPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Division</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead style={{ width: 120 }}></TableHead>
               </TableRow>
@@ -76,21 +150,11 @@ export default function UsersPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-ink-secondary">{u.email}</TableCell>
+                  <TableCell><StatusBadge color={roleColor[u.system_role] || "gray"}>{u.system_role}</StatusBadge></TableCell>
+                  <TableCell className="text-ink-secondary">{u.division_id ? (divisionMap[String(u.division_id)] || `Div #${u.division_id}`) : "—"}</TableCell>
+                  <TableCell><StatusBadge color={u.is_active ? "green" : "red"}>{u.is_active ? "Active" : "Inactive"}</StatusBadge></TableCell>
                   <TableCell>
-                    <StatusBadge color={roleColor[u.system_role] || "gray"}>{u.system_role}</StatusBadge>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge color={u.is_active ? "green" : "red"}>
-                      {u.is_active ? "Active" : "Inactive"}
-                    </StatusBadge>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deactivate(u.id)}
-                      disabled={!u.is_active}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => deactivate(u.id)} disabled={!u.is_active}>
                       Nonaktifkan
                     </Button>
                   </TableCell>
@@ -98,12 +162,7 @@ export default function UsersPage() {
               ))}
             </TableBody>
           </Table>
-          <Pagination
-            page={page}
-            total={data.meta.total}
-            limit={limit}
-            onPageChange={setPage}
-          />
+          <Pagination page={page} total={data.meta.total} limit={limit} onPageChange={setPage} />
         </>
       )}
     </div>

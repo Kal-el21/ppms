@@ -7,6 +7,9 @@ export interface User {
   system_role: SystemRole;
   division_id: number | null;
   is_active?: boolean;
+  profile_photo_url?: string | null;
+  two_fa_enabled?: boolean;
+  email_notification_enabled?: boolean;
 }
 
 export interface Division {

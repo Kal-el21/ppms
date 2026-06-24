@@ -29,6 +29,11 @@ type User struct {
 	DeletedBy *uint64    `json:"deleted_by,omitempty"`
 
 	Version int `gorm:"default:1" json:"version"`
+
+	// Tambahkan ke struct User:
+	ProfilePhotoURL          *string `json:"profile_photo_url,omitempty"`
+	TwoFAEnabled             bool    `gorm:"default:false" json:"two_fa_enabled"`
+	EmailNotificationEnabled bool    `gorm:"default:true" json:"email_notification_enabled"`
 }
 
 func (User) TableName() string {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -9,19 +10,21 @@ import (
 	"github.com/Kal-el21/backend/internal/domain/user/dto"
 	"github.com/Kal-el21/backend/internal/domain/user/entity"
 	"github.com/Kal-el21/backend/internal/domain/user/service"
+	"github.com/Kal-el21/backend/internal/infrastructure/minio"
 	apperrors "github.com/Kal-el21/backend/internal/shared/errors"
 	"github.com/Kal-el21/backend/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
-	service  service.UserService
-	cfg      *configs.Config
-	auditSvc auditservice.AuditService
+	service     service.UserService
+	cfg         *configs.Config
+	auditSvc    auditservice.AuditService
+	minioClient *minio.Client
 }
 
-func NewUserHandler(service service.UserService, cfg *configs.Config, auditSvc auditservice.AuditService) *UserHandler {
-	return &UserHandler{service: service, cfg: cfg, auditSvc: auditSvc}
+func NewUserHandler(service service.UserService, cfg *configs.Config, auditSvc auditservice.AuditService, minioClient *minio.Client) *UserHandler {
+	return &UserHandler{service: service, cfg: cfg, auditSvc: auditSvc, minioClient: minioClient}
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
@@ -220,4 +223,116 @@ func toUserResponse(u *entity.User) *dto.UserResponse {
 		DivisionID: u.DivisionID,
 		IsActive:   u.IsActive,
 	}
+}
+
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
+	var req dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrValidation, err.Error()))
+		return
+	}
+
+	user, err := h.service.UpdateProfile(userID, req)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, toUserResponse(user), "profile updated successfully")
+}
+
+func (h *UserHandler) UploadProfilePhoto(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
+	file, err := c.FormFile("photo")
+	if err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrValidation, "photo file is required"))
+		return
+	}
+
+	// Validasi ukuran (max 5MB untuk foto profile)
+	if file.Size > 5*1024*1024 {
+		response.Error(c, apperrors.New(apperrors.ErrFileTooLarge, "photo size exceeds 5MB limit"))
+		return
+	}
+
+	// Upload ke MinIO via attachment service (reuse existing MinIO client)
+	src, err := file.Open()
+	if err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrInternal, "failed to open file"))
+		return
+	}
+	defer src.Close()
+
+	objectName := fmt.Sprintf("profile-photos/%d/%s", userID, file.Filename)
+	if err := h.minioClient.Upload(c.Request.Context(), objectName, src, file.Size, file.Header.Get("Content-Type")); err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrInternal, "failed to upload photo"))
+		return
+	}
+
+	photoURL, err := h.minioClient.GetPresignedDownloadURL(c.Request.Context(), objectName)
+	if err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrInternal, "failed to get photo url"))
+		return
+	}
+
+	if err := h.service.UpdateProfilePhoto(userID, photoURL); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"photo_url": photoURL}, "profile photo updated")
+}
+
+func (h *UserHandler) Toggle2FA(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
+	var req dto.Toggle2FARequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrValidation, err.Error()))
+		return
+	}
+
+	if err := h.service.Toggle2FA(userID, req.Enabled); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	msg := "two-factor authentication disabled"
+	if req.Enabled {
+		msg = "two-factor authentication enabled"
+	}
+
+	response.Success(c, http.StatusOK, nil, msg)
+}
+
+func (h *UserHandler) ToggleEmailNotification(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
+	var req dto.ToggleEmailNotificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrValidation, err.Error()))
+		return
+	}
+
+	if err := h.service.ToggleEmailNotification(userID, req.Enabled); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, nil, "email notification preference updated")
+}
+
+func (h *UserHandler) GetMe(c *gin.Context) {
+	userID := c.GetUint64("user_id")
+
+	user, err := h.service.GetByID(userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, toUserResponse(user), "")
 }

@@ -14,7 +14,9 @@ export const handoverApi = {
     projectId: number,
     payload: { receiver_id?: number; description: string; delivery_date?: string; delivery_time?: string }
   ) => {
-    const res = await axiosInstance.post<ApiResponse<Handover>>(`/projects/${projectId}/handovers`, payload);
+    const body: any = { ...payload };
+    if (body.delivery_date) body.delivery_date = new Date(body.delivery_date).toISOString();
+    const res = await axiosInstance.post<ApiResponse<Handover>>(`/projects/${projectId}/handovers`, body);
     return res.data.data;
   },
 
