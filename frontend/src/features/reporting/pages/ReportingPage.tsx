@@ -78,7 +78,7 @@ export default function ReportingPage() {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <PageHeader title="Reporting" subtitle="Generate laporan project dalam format PDF atau Excel" />
 
       <Card>

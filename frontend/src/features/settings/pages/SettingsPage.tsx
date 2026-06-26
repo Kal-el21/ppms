@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const [active, setActive] = useState("profile");
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <PageHeader title="Settings" subtitle="Kelola profile, notifikasi, dan keamanan akun Anda" />
 
       <div className="flex gap-1 border-b border-border mb-6">

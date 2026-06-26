@@ -11,11 +11,12 @@ import { useToast } from "../../../components/ui/toast";
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <button
+      type="button"
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
-      className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${checked ? "bg-primary-600" : "bg-surface-tertiary"} disabled:opacity-50`}
+      className={`relative h-6 w-11 rounded-full transition-colors flex-shrink-0 ${checked ? "bg-primary-600" : "bg-surface-tertiary"} ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >
-      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-[21px]" : "translate-x-[3px]"}`} />
     </button>
   );
 }

@@ -21,9 +21,9 @@ function Toggle({ checked, onChange, disabled = false }: { checked: boolean; onC
       type="button"
       onClick={() => onChange(!checked)}
       disabled={disabled}
-      className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 ${checked ? "bg-primary-600" : "bg-surface-tertiary"} ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+      className={`relative h-6 w-11 rounded-full transition-colors flex-shrink-0 ${checked ? "bg-primary-600" : "bg-surface-tertiary"} ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >
-      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-[21px]" : "translate-x-[3px]"}`} />
     </button>
   );
 }
@@ -51,13 +51,6 @@ export default function NotificationSettings() {
         <CardContent className="pt-5">
           <p className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-tertiary mb-3">Channel Notifikasi</p>
           <div className="space-y-1">
-            <div className="flex items-center justify-between py-2.5">
-              <div>
-                <p className="text-[13px] font-medium m-0">Notifikasi In-App</p>
-                <p className="text-[11.5px] text-ink-tertiary m-0 mt-0.5">Tampil di lonceng notifikasi di dalam aplikasi</p>
-              </div>
-              <Toggle checked={true} onChange={() => {}} />
-            </div>
             <div className="flex items-center justify-between py-2.5">
               <div>
                 <p className="text-[13px] font-medium m-0">Notifikasi Email</p>
