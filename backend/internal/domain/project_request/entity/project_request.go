@@ -5,17 +5,20 @@ import "time"
 type RequestStatus string
 
 const (
-	StatusDraft       RequestStatus = "DRAFT"
-	StatusSubmitted   RequestStatus = "SUBMITTED"
-	StatusUnderReview RequestStatus = "UNDER_REVIEW"
-	StatusApproved    RequestStatus = "APPROVED"
-	StatusRejected    RequestStatus = "REJECTED"
-	StatusRevised     RequestStatus = "REVISED"
+	StatusDraft             RequestStatus = "DRAFT"
+	StatusSubmitted         RequestStatus = "SUBMITTED"
+	StatusUnderReview       RequestStatus = "UNDER_REVIEW"
+	StatusApproved          RequestStatus = "APPROVED"
+	StatusRejected          RequestStatus = "REJECTED"
+	StatusRevisionRequested RequestStatus = "REVISION_REQUESTED"
+	StatusRevised           RequestStatus = "REVISED"
 )
 
 type ProjectRequest struct {
 	ID          uint64 `gorm:"primaryKey" json:"id"`
 	RequesterID uint64 `gorm:"not null" json:"requester_id"`
+
+	RequestNumber *string `gorm:"unique;default:null" json:"request_number,omitempty"`
 
 	Title       string `gorm:"not null" json:"title"`
 	Description string `json:"description"`
@@ -26,7 +29,11 @@ type ProjectRequest struct {
 
 	Status RequestStatus `gorm:"not null;default:DRAFT" json:"status"`
 
+	CurrentRevision int `gorm:"default:0" json:"current_revision"`
+
 	SubmittedAt *time.Time `json:"submitted_at,omitempty"`
+	ApprovedAt  *time.Time `json:"approved_at,omitempty"`
+	RejectedAt  *time.Time `json:"rejected_at,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

@@ -60,6 +60,16 @@ func (s *handoverService) Create(projectID uint64, senderID uint64, req dto.Crea
 		},
 	})
 
+	s.eventBus.Publish(events.Event{
+		Name: "handover.created",
+		Data: map[string]interface{}{
+			"handover_id": handover.ID,
+			"project_id":  projectID,
+			"sender_id":   senderID,
+			"receiver_id": req.ReceiverID,
+		},
+	})
+
 	return handover, nil
 }
 

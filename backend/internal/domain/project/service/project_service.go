@@ -8,6 +8,7 @@ import (
 	domainerrors "github.com/Kal-el21/backend/internal/domain/project/errors"
 	"github.com/Kal-el21/backend/internal/domain/project/repository"
 	"github.com/Kal-el21/backend/internal/domain/project/statemachine"
+	"github.com/Kal-el21/backend/internal/events"
 	"gorm.io/gorm"
 )
 
@@ -23,6 +24,7 @@ type ProjectService interface {
 type projectService struct {
 	repo          repository.ProjectRepository
 	milestoneRepo MilestoneProgressProvider
+	eventBus      *events.Bus
 }
 
 // MilestoneProgressProvider adalah interface kecil untuk menghindari
@@ -32,8 +34,8 @@ type MilestoneProgressProvider interface {
 	GetAverageProgressByProject(projectID uint64) (float64, error)
 }
 
-func NewProjectService(repo repository.ProjectRepository, milestoneRepo MilestoneProgressProvider) ProjectService {
-	return &projectService{repo: repo, milestoneRepo: milestoneRepo}
+func NewProjectService(repo repository.ProjectRepository, milestoneRepo MilestoneProgressProvider, eventBus *events.Bus) ProjectService {
+	return &projectService{repo: repo, milestoneRepo: milestoneRepo, eventBus: eventBus}
 }
 
 func (s *projectService) GetByID(id uint64) (*entity.Project, error) {
@@ -111,7 +113,21 @@ func (s *projectService) ChangeStatus(id uint64, req dto.ChangeStatusRequest) (*
 		return nil, domainerrors.ErrVersionMismatch
 	}
 
-	return s.repo.FindByID(id)
+	updated, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if newStatus == entity.ProjectCompleted {
+		s.eventBus.Publish(events.Event{
+			Name: "project.completed",
+			Data: map[string]interface{}{
+				"project_id": updated.ID,
+			},
+		})
+	}
+
+	return updated, nil
 }
 
 // CalculateProgress: Project Progress = Average(Milestone Progress) per SDD section 12.

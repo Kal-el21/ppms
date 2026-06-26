@@ -26,14 +26,17 @@ type ChangeMemberRoleRequest struct {
 
 type ProjectResponse struct {
 	ID          uint64     `json:"id"`
+	ProjectCode string     `json:"project_code,omitempty"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
 	StartDate   *time.Time `json:"start_date"`
 	EndDate     *time.Time `json:"end_date"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
 	Status      string     `json:"status"`
 	Progress    float64    `json:"progress"`
 	Version     int        `json:"version"`
 	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type MemberResponse struct {

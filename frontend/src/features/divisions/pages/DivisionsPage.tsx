@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDivisions, useCreateDivision } from "../hooks/useDivisions";
+import { useDivisions, useCreateDivision, useUpdateDivision, useDeleteDivision } from "../hooks/useDivisions";
 import { useAuth } from "../../auth/context/AuthContext";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -11,14 +11,44 @@ export default function DivisionsPage() {
   const { user } = useAuth();
   const { data, isLoading } = useDivisions();
   const { mutate: createDivision, isPending } = useCreateDivision();
+  const { mutateAsync: updateDivision } = useUpdateDivision();
+  const { mutateAsync: deleteDivision } = useDeleteDivision();
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
 
   const isAdmin = user?.system_role === "ADMIN";
 
   if (isLoading) return <div className="text-ink-secondary text-sm">Memuat divisions...</div>;
+
+
+  const handleEdit = (id: number, name: string, description: string) => {
+    setEditingId(id);
+    setEditName(name);
+    setEditDesc(description);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !editName.trim()) return;
+    await updateDivision({ id: editingId, payload: { name: editName, description: editDesc } });
+    setEditingId(null);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus divisi ini?")) return;
+    setDeletingId(id);
+    try {
+      await deleteDivision(id);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleCreate = () => {
     if (!name.trim()) return;
@@ -82,13 +112,49 @@ export default function DivisionsPage() {
           {data.map((division) => (
             <Card key={division.id}>
               <CardContent className="pt-5">
-                <div className="h-9 w-9 rounded-md bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 flex items-center justify-center font-semibold text-[13px] mb-3">
-                  {division.name.slice(0, 2).toUpperCase()}
-                </div>
-                <p className="text-[13.5px] font-semibold m-0 mb-1">{division.name}</p>
-                <p className="text-[12px] text-ink-tertiary m-0 leading-relaxed">
-                  {division.description || "Tidak ada deskripsi"}
-                </p>
+                {editingId === division.id ? (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Nama divisi"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Deskripsi"
+                      value={editDesc}
+                      onChange={(e) => setEditDesc(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button variant="primary" size="sm" onClick={handleSaveEdit}>Simpan</Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditingId(null)}>Batal</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="h-9 w-9 rounded-md bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 flex items-center justify-center font-semibold text-[13px] mb-3">{
+                      division.name.slice(0, 2).toUpperCase()
+                    }</div>
+                    <p className="text-[13.5px] font-semibold m-0 mb-1">{division.name}</p>
+                    <p className="text-[12px] text-ink-tertiary m-0 leading-relaxed">
+                      {division.description || "Tidak ada deskripsi"}
+                    </p>
+                  </>
+                )}
+                {isAdmin && editingId !== division.id && (
+                  <div className="flex gap-2 mt-3">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(division.id, division.name, division.description || "")}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleDelete(division.id)}
+                      disabled={deletingId === division.id}
+                    >
+                      {deletingId === division.id ? "Menghapus..." : "Hapus"}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

@@ -29,6 +29,11 @@ export const attachmentApi = {
     return res.data.data;
   },
 
+
+  getVersions: async (id: number) => {
+    const res = await axiosInstance.get<ApiResponse<Attachment[]>>(`/attachments/${id}/versions`);
+    return res.data.data;
+  },
   delete: async (id: number) => {
     await axiosInstance.delete(`/attachments/${id}`);
   },

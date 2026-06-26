@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { reportingApi } from "../api/reportingApi";
+import { useGenerateReport, useGenerateReportForProject } from "../hooks/useReporting";
 import { useAuth } from "../../auth/context/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -47,6 +47,9 @@ export default function ReportingPage() {
     window.URL.revokeObjectURL(url);
   };
 
+  const { mutateAsync: generate } = useGenerateReport();
+  const { mutateAsync: generateForProject } = useGenerateReportForProject();
+
   const handleGenerate = async () => {
     setErrorMsg(null);
     setIsGenerating(true);
@@ -56,14 +59,14 @@ export default function ReportingPage() {
 
       let blob: Blob;
       if (projectId) {
-        blob = await reportingApi.generateForProject(Number(projectId), type, format);
+        blob = await generateForProject({ projectId: Number(projectId), type, format });
       } else {
         if (!isAdmin) {
           setErrorMsg("Hanya ADMIN yang bisa generate laporan sistem-wide. Isi Project ID di mana Anda menjadi PM.");
           setIsGenerating(false);
           return;
         }
-        blob = await reportingApi.generate(type, format);
+        blob = await generate({ type, format });
       }
 
       downloadBlob(blob, fileName);

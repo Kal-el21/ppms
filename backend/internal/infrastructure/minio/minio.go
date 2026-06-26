@@ -29,10 +29,35 @@ func NewClient(cfg *configs.Config) (*Client, error) {
 }
 
 func (c *Client) Upload(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) error {
+	if err := c.ensureBucket(ctx); err != nil {
+		return err
+	}
+
 	_, err := c.client.PutObject(ctx, c.bucketName, objectName, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	return err
+}
+
+func (c *Client) ensureBucket(ctx context.Context) error {
+	exists, err := c.client.BucketExists(ctx, c.bucketName)
+	if err != nil {
+		return fmt.Errorf("failed to check minio bucket %q: %w", c.bucketName, err)
+	}
+	if exists {
+		return nil
+	}
+
+	if err := c.client.MakeBucket(ctx, c.bucketName, minio.MakeBucketOptions{}); err != nil {
+		// Another request/process may have created it between BucketExists and MakeBucket.
+		exists, checkErr := c.client.BucketExists(ctx, c.bucketName)
+		if checkErr == nil && exists {
+			return nil
+		}
+		return fmt.Errorf("failed to create minio bucket %q: %w", c.bucketName, err)
+	}
+
+	return nil
 }
 
 // GetPresignedDownloadURL menghasilkan URL sementara (default 15 menit) untuk download

@@ -4,7 +4,7 @@ interface MetricCardProps {
   label: string;
   value: string | number;
   icon: ReactNode;
-  iconColor: "blue" | "green" | "amber" | "red" | "teal";
+  iconColor: "blue" | "green" | "amber" | "red" | "teal" | "indigo" | "emerald";
   delta?: { direction: "up" | "down"; text: string } | { neutral: string };
 }
 
@@ -14,6 +14,8 @@ const iconColorMap: Record<MetricCardProps["iconColor"], string> = {
   amber: "bg-warning-50 text-warning-700 dark:bg-warning-700/20 dark:text-warning-500",
   red: "bg-danger-50 text-danger-700 dark:bg-danger-900/40 dark:text-danger-400",
   teal: "bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400",
+  indigo: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400",
+  emerald: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
 };
 
 export function MetricCard({ label, value, icon, iconColor, delta }: MetricCardProps) {

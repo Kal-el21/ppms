@@ -14,6 +14,7 @@ import (
 	apperrors "github.com/Kal-el21/backend/internal/shared/errors"
 	"github.com/Kal-el21/backend/internal/shared/response"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type UserHandler struct {
@@ -25,6 +26,12 @@ type UserHandler struct {
 
 func NewUserHandler(service service.UserService, cfg *configs.Config, auditSvc auditservice.AuditService, minioClient *minio.Client) *UserHandler {
 	return &UserHandler{service: service, cfg: cfg, auditSvc: auditSvc, minioClient: minioClient}
+}
+
+var allowedProfilePhotoTypes = map[string]string{
+	"image/jpeg": ".jpg",
+	"image/png":  ".png",
+	"image/webp": ".webp",
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
@@ -216,15 +223,17 @@ func (h *UserHandler) Restore(c *gin.Context) {
 
 func toUserResponse(u *entity.User) *dto.UserResponse {
 	return &dto.UserResponse{
-		ID:         u.ID,
-		FullName:   u.FullName,
-		Email:      u.Email,
-		SystemRole: string(u.SystemRole),
-		DivisionID: u.DivisionID,
-		IsActive:   u.IsActive,
+		ID:                       u.ID,
+		FullName:                 u.FullName,
+		Email:                    u.Email,
+		SystemRole:               string(u.SystemRole),
+		DivisionID:               u.DivisionID,
+		IsActive:                 u.IsActive,
+		ProfilePhotoURL:          u.ProfilePhotoURL,
+		TwoFAEnabled:             u.TwoFAEnabled,
+		EmailNotificationEnabled: u.EmailNotificationEnabled,
 	}
 }
-
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	userID := c.GetUint64("user_id")
 
@@ -258,7 +267,13 @@ func (h *UserHandler) UploadProfilePhoto(c *gin.Context) {
 		return
 	}
 
-	// Upload ke MinIO via attachment service (reuse existing MinIO client)
+	contentType := file.Header.Get("Content-Type")
+	ext, ok := allowedProfilePhotoTypes[contentType]
+	if !ok {
+		response.Error(c, apperrors.New(apperrors.ErrUnsupportedFile, "photo must be JPG, PNG, or WebP"))
+		return
+	}
+
 	src, err := file.Open()
 	if err != nil {
 		response.Error(c, apperrors.New(apperrors.ErrInternal, "failed to open file"))
@@ -266,9 +281,9 @@ func (h *UserHandler) UploadProfilePhoto(c *gin.Context) {
 	}
 	defer src.Close()
 
-	objectName := fmt.Sprintf("profile-photos/%d/%s", userID, file.Filename)
-	if err := h.minioClient.Upload(c.Request.Context(), objectName, src, file.Size, file.Header.Get("Content-Type")); err != nil {
-		response.Error(c, apperrors.New(apperrors.ErrInternal, "failed to upload photo"))
+	objectName := fmt.Sprintf("profile-photos/%d/%s%s", userID, uuid.NewString(), ext)
+	if err := h.minioClient.Upload(c.Request.Context(), objectName, src, file.Size, contentType); err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrInternal, "failed to upload photo; please verify object storage is available"))
 		return
 	}
 

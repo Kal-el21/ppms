@@ -6,14 +6,16 @@ import (
 )
 
 // allowedTransitions mendefinisikan transisi valid sesuai FR-04.06.
-// DRAFT -> SUBMITTED -> UNDER_REVIEW -> APPROVED | REJECTED -> REVISED -> SUBMITTED
+// DRAFT -> SUBMITTED -> UNDER_REVIEW -> APPROVED | REJECTED | REVISION_REQUESTED -> REVISED -> APPROVED/REJECTED/REVISION_REQUESTED
+// REVISED -> SUBMITTED tetap didukung untuk kompatibilitas alur lama.
 var allowedTransitions = map[entity.RequestStatus][]entity.RequestStatus{
-	entity.StatusDraft:       {entity.StatusSubmitted},
-	entity.StatusSubmitted:   {entity.StatusUnderReview},
-	entity.StatusUnderReview: {entity.StatusApproved, entity.StatusRejected},
-	entity.StatusRejected:    {entity.StatusRevised},
-	entity.StatusRevised:     {entity.StatusSubmitted},
-	entity.StatusApproved:    {}, // terminal state
+	entity.StatusDraft:             {entity.StatusSubmitted},
+	entity.StatusSubmitted:         {entity.StatusUnderReview},
+	entity.StatusUnderReview:       {entity.StatusApproved, entity.StatusRejected, entity.StatusRevisionRequested},
+	entity.StatusRevisionRequested: {entity.StatusRevised},
+	entity.StatusRejected:          {}, // terminal state
+	entity.StatusRevised:           {entity.StatusSubmitted, entity.StatusApproved, entity.StatusRejected, entity.StatusRevisionRequested},
+	entity.StatusApproved:          {}, // terminal state
 }
 
 func CanTransition(from, to entity.RequestStatus) bool {

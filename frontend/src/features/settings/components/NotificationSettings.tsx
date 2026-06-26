@@ -1,14 +1,12 @@
-import { useState } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
-import axiosInstance from "../../../api/axiosInstance";
+import { useToggleEmailNotification } from "../hooks/useSettings";
 import { useNotificationPreferences, useUpdatePreference } from "../../notifications/hooks/useNotifications";
 import { Card, CardContent } from "../../../components/ui/card";
-import { useToast } from "../../../components/ui/toast";
 
 const typeMeta: Record<string, { label: string; desc: string; group: string }> = {
   REQUEST_SUBMITTED: { label: "Request Disubmit", desc: "Saat ada request baru menunggu review Anda", group: "Project Request" },
   REQUEST_APPROVED: { label: "Request Disetujui", desc: "Saat request Anda disetujui", group: "Project Request" },
-  REQUEST_REJECTED: { label: "Request Ditolak/Revisi", desc: "Saat request Anda perlu revisi atau ditolak", group: "Project Request" },
+  REQUEST_REJECTED: { label: "Request Ditolak", desc: "Saat request Anda ditolak permanen", group: "Project Request" },
   TASK_ASSIGNED: { label: "Task Ditugaskan", desc: "Saat Anda ditugaskan ke task baru", group: "Task" },
   TASK_COMPLETED: { label: "Task Selesai", desc: "Saat task di project Anda selesai", group: "Task" },
   BUDGET_WARNING: { label: "Peringatan Budget 80%", desc: "Saat penggunaan budget mencapai 80%", group: "Budget" },
@@ -31,23 +29,13 @@ function Toggle({ checked, onChange, disabled = false }: { checked: boolean; onC
 }
 
 export default function NotificationSettings() {
-  const { user, login } = useAuth();
-  const toast = useToast();
+  const { user } = useAuth();
   const { data: preferences } = useNotificationPreferences();
   const { mutate: updatePref } = useUpdatePreference();
-  const [togglingEmail, setTogglingEmail] = useState(false);
+  const { mutate: toggleEmailNotification, isPending: togglingEmail } = useToggleEmailNotification();
 
   const handleToggleEmail = async (enabled: boolean) => {
-    setTogglingEmail(true);
-    try {
-      await axiosInstance.post("/me/toggle-email-notification", { enabled });
-      login({ ...user!, email_notification_enabled: enabled });
-      toast.success(enabled ? "Notifikasi email diaktifkan" : "Notifikasi email dinonaktifkan");
-    } catch (err: any) {
-      toast.error("Gagal mengubah preferensi email", err?.friendlyMessage);
-    } finally {
-      setTogglingEmail(false);
-    }
+    toggleEmailNotification(enabled);
   };
 
   const grouped = (preferences || []).reduce<Record<string, typeof preferences>>((acc, p) => {

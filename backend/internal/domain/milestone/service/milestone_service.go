@@ -8,6 +8,7 @@ import (
 	domainerrors "github.com/Kal-el21/backend/internal/domain/milestone/errors"
 	"github.com/Kal-el21/backend/internal/domain/milestone/repository"
 	"github.com/Kal-el21/backend/internal/domain/milestone/statemachine"
+	"github.com/Kal-el21/backend/internal/events"
 	"gorm.io/gorm"
 )
 
@@ -31,10 +32,11 @@ type MilestoneService interface {
 type milestoneService struct {
 	repo         repository.MilestoneRepository
 	taskProvider TaskProgressProvider
+	eventBus     *events.Bus
 }
 
-func NewMilestoneService(repo repository.MilestoneRepository, taskProvider TaskProgressProvider) MilestoneService {
-	return &milestoneService{repo: repo, taskProvider: taskProvider}
+func NewMilestoneService(repo repository.MilestoneRepository, taskProvider TaskProgressProvider, eventBus *events.Bus) MilestoneService {
+	return &milestoneService{repo: repo, taskProvider: taskProvider, eventBus: eventBus}
 }
 
 func (s *milestoneService) Create(projectID uint64, req dto.CreateMilestoneRequest) (*entity.Milestone, error) {
@@ -138,7 +140,23 @@ func (s *milestoneService) ChangeStatus(id uint64, req dto.ChangeMilestoneStatus
 		return nil, domainerrors.ErrVersionMismatch
 	}
 
-	return s.repo.FindByID(id)
+	updated, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if newStatus == entity.MilestoneCompleted {
+		s.eventBus.Publish(events.Event{
+			Name: "milestone.completed",
+			Data: map[string]interface{}{
+				"milestone_id": updated.ID,
+				"project_id":   updated.ProjectID,
+				"name":         updated.Name,
+			},
+		})
+	}
+
+	return updated, nil
 }
 
 func (s *milestoneService) Reorder(projectID uint64, req dto.ReorderMilestoneRequest) error {

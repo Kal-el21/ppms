@@ -15,6 +15,13 @@ export const budgetApi = {
     return res.data.data;
   },
 
+
+  update: async (projectId: number, budgetId: number, allocatedBudget: number) => {
+    const res = await axiosInstance.put<ApiResponse<Budget>>(`/projects/${projectId}/budget/${budgetId}`, {
+      allocated_budget: allocatedBudget,
+    });
+    return res.data.data;
+  },
   getTransactions: async (projectId: number, budgetId: number) => {
     const res = await axiosInstance.get<ApiResponse<Transaction[]>>(
       `/projects/${projectId}/budget/${budgetId}/transactions`

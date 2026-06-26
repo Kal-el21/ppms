@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { EmptyState } from "./EmptyState";
@@ -6,6 +6,7 @@ import {
   useAttachments,
   useUploadAttachment,
   useDeleteAttachment,
+  useAttachmentVersions,
   handleDownload,
 } from "../../features/attachments/hooks/useAttachments";
 import type { EntityType } from "../../features/attachments/types";
@@ -17,7 +18,9 @@ interface FileUploadCardProps {
 
 export default function FileUploadCard({ entityType, entityId }: FileUploadCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [versionAttachmentId, setVersionAttachmentId] = useState<number | null>(null);
   const { data: attachments, isLoading } = useAttachments(entityType, entityId);
+  const { data: versions, isLoading: versionsLoading } = useAttachmentVersions(versionAttachmentId ?? 0);
   const { mutate: upload, isPending } = useUploadAttachment(entityType, entityId);
   const { mutate: deleteFile } = useDeleteAttachment(entityType, entityId);
 
@@ -86,6 +89,13 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
                   </div>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setVersionAttachmentId(versionAttachmentId === a.id ? null : a.id)}
+                  >
+                    Versions
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleDownload(a.id)}>
                     Download
                   </Button>
@@ -95,6 +105,35 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {versionAttachmentId && (
+          <div className="mt-4 rounded-md border border-border bg-surface-secondary p-3">
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-tertiary mb-2">Version history</p>
+            {versionsLoading ? (
+              <p className="text-[12.5px] text-ink-tertiary m-0">Memuat versions...</p>
+            ) : !versions || versions.length === 0 ? (
+              <p className="text-[12.5px] text-ink-tertiary m-0">Belum ada version history.</p>
+            ) : (
+              <div className="flex flex-col">
+                {versions.map((version) => (
+                  <div key={version.id} className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-b-0">
+                    <div className="min-w-0">
+                      <p className="text-[12.5px] font-medium m-0 truncate">
+                        v{version.version} - {version.original_name}
+                      </p>
+                      <p className="text-[11px] text-ink-tertiary m-0">
+                        {formatSize(version.file_size)} &middot; {new Date(version.created_at).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => handleDownload(version.id)}>
+                      Download
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

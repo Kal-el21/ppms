@@ -56,6 +56,7 @@ export function useUpdateDraft(id: number) {
     mutationFn: (payload: UpdateDraftPayload) => requestApi.updateDraft(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["project-requests", id] });
       toast.success("Draft berhasil disimpan");
     },
     onError: (error: any) => {
@@ -69,8 +70,9 @@ export function useSubmitRequest() {
   const toast = useToast();
   return useMutation({
     mutationFn: (id: number) => requestApi.submit(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["project-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["project-requests", id] });
       toast.success("Request berhasil disubmit", "Menunggu review dari Admin");
     },
     onError: (error: any) => {
@@ -86,6 +88,8 @@ export function useReviewRequest(id: number) {
     mutationFn: (payload: ReviewPayload) => requestApi.review(id, payload),
     onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["project-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["project-requests", id] });
+      queryClient.invalidateQueries({ queryKey: ["project-requests", id, "approvals"] });
       const label = payload.action === "APPROVED" ? "disetujui" : payload.action === "REJECTED" ? "ditolak" : "diminta revisi";
       toast.success(`Request berhasil ${label}`);
     },
@@ -102,6 +106,8 @@ export function useReviseRequest(id: number) {
     mutationFn: (payload: RevisePayload) => requestApi.revise(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["project-requests", id] });
+      queryClient.invalidateQueries({ queryKey: ["project-requests", id, "revisions"] });
       toast.success("Revisi berhasil dikirim");
     },
     onError: (error: any) => {

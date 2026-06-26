@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useUsers, useDeactivateUser, useCreateUser } from "../hooks/useUsers";
+import { useUsers, useDeactivateUser, useCreateUser, useUpdateUser, useAssignUserRole, useRestoreUser } from "../hooks/useUsers";
 import { useDivisions } from "../../divisions/hooks/useDivisions";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -34,14 +34,42 @@ export default function UsersPage() {
   const { data, isLoading } = useUsers(page, limit);
   const { data: divisions } = useDivisions();
   const { mutate: deactivate } = useDeactivateUser();
+  const { mutate: restore } = useRestoreUser();
+  const { mutate: assignRole } = useAssignUserRole();
+  const { mutate: updateUser } = useUpdateUser();
   const { mutate: createUser, isPending: creating } = useCreateUser();
 
   const [showForm, setShowForm] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [form, setForm] = useState<UserFormData>({
     full_name: "", email: "", password: "", system_role: "USER", division_id: "",
   });
 
   const divisionMap = Object.fromEntries((divisions || []).map((d) => [String(d.id), d.name]));
+
+  const openCreateForm = () => {
+    setEditingUserId(null);
+    setForm({ full_name: "", email: "", password: "", system_role: "USER", division_id: "" });
+    setShowForm(true);
+  };
+
+  const openEditForm = (user: { id: number; full_name: string; system_role: string; division_id: number | null }) => {
+    setEditingUserId(user.id);
+    setShowForm(true);
+    setForm({
+      full_name: user.full_name,
+      email: "",
+      password: "",
+      system_role: user.system_role,
+      division_id: user.division_id ? String(user.division_id) : "",
+    });
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingUserId(null);
+    setForm({ full_name: "", email: "", password: "", system_role: "USER", division_id: "" });
+  };
 
   const handleCreate = () => {
     createUser(
@@ -52,8 +80,24 @@ export default function UsersPage() {
         system_role: form.system_role,
         division_id: form.division_id ? Number(form.division_id) : null,
       },
-      { onSuccess: () => { setShowForm(false); setForm({ full_name: "", email: "", password: "", system_role: "USER", division_id: "" }); } }
+      { onSuccess: closeForm }
     );
+  };
+
+  const handleUpdate = () => {
+    if (!editingUserId) return;
+    updateUser(
+      { id: editingUserId, payload: { full_name: form.full_name, division_id: form.division_id ? Number(form.division_id) : null } },
+      { onSuccess: closeForm }
+    );
+  };
+
+  const handleChangeRole = (id: number, role: string) => {
+    assignRole({ id, systemRole: role });
+  };
+
+  const handleRestore = (id: number) => {
+    restore(id);
   };
 
   return (
@@ -62,7 +106,7 @@ export default function UsersPage() {
         title="User Management"
         subtitle={`${data?.meta.total ?? 0} user terdaftar`}
         actions={
-          <Button variant="primary" onClick={() => setShowForm((v) => !v)}>
+          <Button variant="primary" onClick={openCreateForm}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14M5 12h14" />
             </svg>
@@ -73,21 +117,25 @@ export default function UsersPage() {
 
       {showForm && (
         <Card className="mb-5 border-primary-200 dark:border-primary-900/50">
-          <CardHeader><CardTitle>Tambah User Baru</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{editingUserId ? "Edit User" : "Tambah User Baru"}</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
               <div>
                 <Label>Nama lengkap</Label>
                 <Input placeholder="cth. Budi Santoso" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
               </div>
-              <div>
-                <Label>Email</Label>
-                <Input type="email" placeholder="budi@perusahaan.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              </div>
-              <div>
-                <Label>Password awal</Label>
-                <Input type="password" placeholder="Min. 8 karakter" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              </div>
+              {!editingUserId && (
+                <div>
+                  <Label>Email</Label>
+                  <Input type="email" placeholder="budi@perusahaan.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                </div>
+              )}
+              {!editingUserId && (
+                <div>
+                  <Label>Password awal</Label>
+                  <Input type="password" placeholder="Min. 8 karakter" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                </div>
+              )}
               <div>
                 <Label>System Role</Label>
                 <Select
@@ -111,7 +159,7 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="primary" onClick={handleCreate} disabled={creating}>
+              <Button variant="primary" onClick={editingUserId ? handleUpdate : handleCreate} disabled={creating}>
                 {creating ? "Menyimpan..." : "Simpan"}
               </Button>
               <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
@@ -153,10 +201,29 @@ export default function UsersPage() {
                   <TableCell><StatusBadge color={roleColor[u.system_role] || "gray"}>{u.system_role}</StatusBadge></TableCell>
                   <TableCell className="text-ink-secondary">{u.division_id ? (divisionMap[String(u.division_id)] || `Div #${u.division_id}`) : "—"}</TableCell>
                   <TableCell><StatusBadge color={u.is_active ? "green" : "red"}>{u.is_active ? "Active" : "Inactive"}</StatusBadge></TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => deactivate(u.id)} disabled={!u.is_active}>
-                      Nonaktifkan
+                  <TableCell className="flex flex-wrap gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEditForm(u)}>
+                      Edit
                     </Button>
+                    <Select
+                      value={u.system_role}
+                      onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                      className="w-32"
+                      options={[
+                        { value: "ADMIN", label: "Admin" },
+                        { value: "USER", label: "User" },
+                        { value: "VIEWER", label: "Viewer" },
+                      ]}
+                    />
+                    {u.is_active ? (
+                      <Button variant="ghost" size="sm" onClick={() => deactivate(u.id)}>
+                        Nonaktifkan
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => handleRestore(u.id)}>
+                        Aktifkan
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

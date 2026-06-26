@@ -6,6 +6,8 @@ type DashboardSummary struct {
 	TotalProjects     int64            `json:"total_projects"`
 	ActiveProjects    int64            `json:"active_projects"`
 	CompletedProjects int64            `json:"completed_projects"`
+	TotalTasks        int64            `json:"total_tasks"`
+	CompletedTasks    int64            `json:"completed_tasks"`
 	PendingRequests   int64            `json:"pending_requests"`
 	OverdueTasks      int64            `json:"overdue_tasks"`
 	TotalBudgetUsage  float64          `json:"total_budget_usage_percentage"`

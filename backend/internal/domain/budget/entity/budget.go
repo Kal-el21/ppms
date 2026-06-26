@@ -8,6 +8,9 @@ type Budget struct {
 
 	AllocatedBudget float64 `gorm:"not null;default:0" json:"allocated_budget"`
 
+	CreatedBy uint64 `gorm:"not null" json:"created_by"`
+	UpdatedBy *uint64 `json:"updated_by,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 

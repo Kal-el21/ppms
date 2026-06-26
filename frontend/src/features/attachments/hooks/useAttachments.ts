@@ -26,6 +26,14 @@ export function useDeleteAttachment(entityType: EntityType, entityId: number) {
   });
 }
 
+export function useAttachmentVersions(id: number) {
+  return useQuery({
+    queryKey: ["attachments", id, "versions"],
+    queryFn: () => attachmentApi.getVersions(id),
+    enabled: !!id,
+  });
+}
+
 export async function handleDownload(id: number) {
   const { download_url, file_name } = await attachmentApi.getDownloadUrl(id);
   const link = document.createElement("a");

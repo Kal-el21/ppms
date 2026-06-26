@@ -18,6 +18,14 @@ export function useCreateBudget(projectId: number) {
   });
 }
 
+export function useUpdateBudget(projectId: number, budgetId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (allocatedBudget: number) => budgetApi.update(projectId, budgetId, allocatedBudget),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, "budget"] }),
+  });
+}
+
 export function useTransactions(projectId: number, budgetId: number) {
   return useQuery({
     queryKey: ["projects", projectId, "budget", budgetId, "transactions"],

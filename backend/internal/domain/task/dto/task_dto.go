@@ -50,6 +50,7 @@ type TaskResponse struct {
 	Progress    int        `json:"progress"`
 	StartDate   *time.Time `json:"start_date"`
 	DueDate     *time.Time `json:"due_date"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
 	Version     int        `json:"version"`
 	Assignees   []uint64   `json:"assignee_ids,omitempty"`
 }

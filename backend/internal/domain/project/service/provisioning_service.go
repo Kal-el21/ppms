@@ -10,7 +10,7 @@ import (
 // ProvisioningService bertanggung jawab khusus untuk auto-create project
 // dari approved request (FR-05.01). Service lifecycle/member penuh ada di Phase 3.
 type ProvisioningService interface {
-	CreateFromApprovedRequest(requestID uint64, title string, description string, requesterID uint64) (*entity.Project, error)
+	CreateFromApprovedRequest(requestID uint64, title string, description string, requesterID uint64, projectManagerID uint64) (*entity.Project, error)
 }
 
 type provisioningService struct {
@@ -22,7 +22,7 @@ func NewProvisioningService(projectRepo repository.ProjectRepository, memberRepo
 	return &provisioningService{projectRepo: projectRepo, memberRepo: memberRepo}
 }
 
-func (s *provisioningService) CreateFromApprovedRequest(requestID uint64, title string, description string, requesterID uint64) (*entity.Project, error) {
+func (s *provisioningService) CreateFromApprovedRequest(requestID uint64, title string, description string, requesterID uint64, projectManagerID uint64) (*entity.Project, error) {
 	project := &entity.Project{
 		ProjectRequestID: &requestID,
 		Name:             title,
@@ -35,10 +35,10 @@ func (s *provisioningService) CreateFromApprovedRequest(requestID uint64, title 
 		return nil, err
 	}
 
-	// Requester otomatis menjadi PROJECT_MANAGER pertama (BR-01: minimal 1 active PM)
+	// Admin memilih PROJECT_MANAGER pertama saat menyetujui request.
 	member := &entity.ProjectMember{
 		ProjectID:   project.ID,
-		UserID:      requesterID,
+		UserID:      projectManagerID,
 		ProjectRole: entity.RoleProjectManager,
 		Status:      entity.MemberActive,
 		JoinedAt:    time.Now(),

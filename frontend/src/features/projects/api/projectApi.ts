@@ -16,7 +16,10 @@ export const projectApi = {
   },
 
   update: async (id: number, payload: Partial<Project> & { version: number }) => {
-    const res = await axiosInstance.put<ApiResponse<Project>>(`/projects/${id}`, payload);
+    const body: any = { ...payload };
+    if (body.start_date) body.start_date = new Date(body.start_date).toISOString();
+    if (body.end_date) body.end_date = new Date(body.end_date).toISOString();
+    const res = await axiosInstance.put<ApiResponse<Project>>(`/projects/${id}`, body);
     return res.data.data;
   },
 

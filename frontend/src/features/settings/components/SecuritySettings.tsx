@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import axiosInstance from "../../../api/axiosInstance";
-import { authApi } from "../../auth/api/authApi";
+import { useToggle2FA, useChangePassword } from "../hooks/useSettings";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
@@ -22,32 +21,21 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 }
 
 export default function SecuritySettings() {
-  const { user, updateUser, logout } = useAuth(); // tambah updateUser
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const { mutate: toggle2FA, isPending: toggling2FA } = useToggle2FA();
+  const { mutate: changePassword } = useChangePassword();
 
-  const [toggling2FA, setToggling2FA] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwords, setPasswords] = useState({ old: "", new: "", confirm: "" });
 
   const handleToggle2FA = async (enabled: boolean) => {
-    setToggling2FA(true);
-    try {
-      await axiosInstance.post("/me/toggle-2fa", { enabled });
-      updateUser({ two_fa_enabled: enabled });
-      toast.success(enabled
-        ? "Two-factor authentication diaktifkan. Kode OTP akan dikirim ke email saat login."
-        : "Two-factor authentication dinonaktifkan."
-      );
-    } catch (err: any) {
-      toast.error("Gagal mengubah pengaturan 2FA", err?.friendlyMessage);
-    } finally {
-      setToggling2FA(false);
-    }
+    toggle2FA(enabled);
   };
 
-  const handleChangePassword = async () => {
+  const handleChangePassword = () => {
     if (passwords.new !== passwords.confirm) {
       toast.error("Konfirmasi password tidak cocok");
       return;
@@ -57,18 +45,18 @@ export default function SecuritySettings() {
       return;
     }
     setChangingPassword(true);
-    try {
-      await authApi.changePassword(passwords.old, passwords.new);
-      toast.success("Password berhasil diubah", "Semua sesi lain telah direvoke. Silakan login kembali.");
-      setTimeout(async () => {
-        logout();
-        navigate("/login");
-      }, 2000);
-    } catch (err: any) {
-      toast.error("Gagal mengubah password", err?.friendlyMessage);
-    } finally {
-      setChangingPassword(false);
-    }
+    changePassword(
+      { oldPassword: passwords.old, newPassword: passwords.new },
+      {
+        onSuccess: () => {
+          setTimeout(() => {
+            logout();
+            navigate("/login");
+          }, 1200);
+        },
+        onSettled: () => setChangingPassword(false),
+      }
+    );
   };
 
   return (

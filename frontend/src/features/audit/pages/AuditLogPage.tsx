@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { auditApi } from "../api/auditApi";
+import { useAuditList } from "../hooks/useAudit";
 import { StatusBadge } from "../../../components/ui/status-badge";
 import { Input } from "../../../components/ui/input";
 import { PageHeader } from "../../../components/shared/PageHeader";
@@ -42,10 +41,7 @@ export default function AuditLogPage() {
   const [module, setModule] = useState("");
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["audit-logs", module, page],
-    queryFn: () => auditApi.getList(page, LIMIT, module || undefined),
-  });
+  const { data, isLoading } = useAuditList(page, LIMIT, module || undefined);
 
   return (
     <div>

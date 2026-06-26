@@ -10,6 +10,8 @@ type DashboardRepository interface {
 	CountTotalProjects(userID uint64, isAdmin bool) (int64, error)
 	CountPendingRequests(userID uint64, isAdmin bool) (int64, error)
 	CountOverdueTasks(userID uint64, isAdmin bool) (int64, error)
+	CountTotalTasks(userID uint64, isAdmin bool) (int64, error)
+	CountCompletedTasks(userID uint64, isAdmin bool) (int64, error)
 	GetAverageBudgetUsage(userID uint64, isAdmin bool) (float64, error)
 	GetRecentActivities(limit int) ([]dto.RecentActivity, error)
 }
@@ -66,6 +68,34 @@ func (r *dashboardRepository) CountOverdueTasks(userID uint64, isAdmin bool) (in
 	var count int64
 	query := r.db.Table("tasks").
 		Where("tasks.due_date < CURRENT_DATE AND tasks.status NOT IN ('DONE', 'CANCELLED') AND tasks.deleted_at IS NULL")
+
+	if !isAdmin {
+		query = query.Joins("JOIN project_members ON project_members.project_id = tasks.project_id").
+			Where("project_members.user_id = ? AND project_members.status = 'ACTIVE'", userID)
+	}
+
+	err := query.Count(&count).Error
+	return count, err
+}
+
+func (r *dashboardRepository) CountTotalTasks(userID uint64, isAdmin bool) (int64, error) {
+	var count int64
+	query := r.db.Table("tasks").
+		Where("tasks.deleted_at IS NULL")
+
+	if !isAdmin {
+		query = query.Joins("JOIN project_members ON project_members.project_id = tasks.project_id").
+			Where("project_members.user_id = ? AND project_members.status = 'ACTIVE'", userID)
+	}
+
+	err := query.Count(&count).Error
+	return count, err
+}
+
+func (r *dashboardRepository) CountCompletedTasks(userID uint64, isAdmin bool) (int64, error) {
+	var count int64
+	query := r.db.Table("tasks").
+		Where("tasks.status = 'DONE' AND tasks.deleted_at IS NULL")
 
 	if !isAdmin {
 		query = query.Joins("JOIN project_members ON project_members.project_id = tasks.project_id").

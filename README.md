@@ -524,12 +524,23 @@ Production:   https://api.ppms.yourcompany.com/api/v1
 | POST | `/auth/login` | Login, return access + refresh token |
 | POST | `/auth/refresh` | Rotate refresh token |
 | POST | `/auth/logout` | Revoke session |
+| POST | `/auth/verify-otp` | Verify OTP untuk 2FA |
+| POST | `/auth/resend-otp` | Resend OTP |
 
 #### Auth (Protected)
 | Method | Path | Deskripsi |
 |---|---|---|
 | POST | `/auth/change-password` | Ganti password, revoke semua sesi lain |
 | POST | `/auth/revoke-sessions` | Revoke semua sesi aktif |
+
+#### Profile & Settings (Protected)
+| Method | Path | Deskripsi |
+|---|---|---|
+| GET | `/me` | Ambil profil user |
+| PUT | `/me` | Update profil user |
+| POST | `/me/photo` | Upload foto profil |
+| POST | `/me/toggle-2fa` | Toggle 2FA |
+| POST | `/me/toggle-email-notification` | Toggle email notification |
 
 #### Division
 | Method | Path | Role |
@@ -564,6 +575,18 @@ Production:   https://api.ppms.yourcompany.com/api/v1
 | POST | `/project-requests/:id/revise` | USER (owner) |
 | GET | `/project-requests/:id/revisions` | USER (owner), ADMIN |
 | GET | `/project-requests/:id/approvals` | USER (owner), ADMIN |
+
+`POST /project-requests/:id/review` menerima body:
+
+```json
+{
+  "action": "APPROVED",
+  "comment": "Approved for execution",
+  "project_manager_id": 12
+}
+```
+
+`project_manager_id` wajib saat `action = APPROVED` dan harus menunjuk user aktif dengan system role `USER` atau `ADMIN`. `REQUEST_REVISION` mengubah request menjadi `REVISION_REQUESTED`, bukan `REJECTED`, sehingga revisi dan penolakan permanen tidak tertukar. Setelah user mengirim revisi, request berstatus `REVISED` bisa direview ulang oleh ADMIN untuk disetujui, ditolak, atau diminta revisi lagi.
 
 #### Project
 | Method | Path | Role |
@@ -671,11 +694,17 @@ PPMS menggunakan **in-memory synchronous event bus** untuk komunikasi antar-doma
 | `project.request.submitted` | RequestService | Notify semua ADMIN |
 | `project.request.approved` | RequestService | Notify requester |
 | `project.request.rejected` | RequestService | Notify requester |
+| `project.request.revised` | RequestService | Notify semua ADMIN |
 | `task.created` | TaskService | (logging) |
 | `task.assigned` | TaskService | Notify user yang di-assign |
 | `task.completed` | TaskService | Notify semua PM project |
+| `task.overdue` | Scheduler (main.go) | Notify assignee |
+| `task.due_soon` | Scheduler (main.go) | Notify assignee (H-1 sebelum due date) |
 | `budget.warning` | TransactionService | Notify semua PM project (usage ≥ 80%) |
 | `budget.over_limit` | TransactionService | Notify semua PM project (usage ≥ 100%) |
+| `milestone.completed` | MilestoneService | Notify semua member project |
+| `project.completed` | ProjectService | Notify semua member project |
+| `handover.created` | HandoverService | Notify receiver + konfirmasi ke sender |
 | `handover.sent` | HandoverService | Notify receiver (jika ada) |
 | `handover.received` | HandoverService | Notify sender |
 
@@ -769,11 +798,19 @@ Presigned URL digunakan agar file besar tidak melewati backend Go (lebih efisien
 |---|---|
 | `REQUEST_SUBMITTED` | Project request disubmit |
 | `REQUEST_APPROVED` | Project request diapprove |
-| `REQUEST_REJECTED` | Project request ditolak/diminta revisi |
+| `REQUEST_REJECTED` | Project request ditolak permanen |
+| `REVISION_REQUESTED` | Admin meminta revisi project request |
+| `REQUEST_REVISED` | Project request direvisi oleh requester |
 | `TASK_ASSIGNED` | User di-assign ke task |
 | `TASK_COMPLETED` | Task ditandai selesai |
+| `TASK_OVERDUE` | Task melewati due date dan belum DONE/CANCELLED |
+| `TASK_DUE_SOON` | Task akan jatuh tempo dalam 24 jam dan belum DONE/CANCELLED |
+| `TASK_OVERDUE` | Task melewati due date dan belum DONE/CANCELLED |
+| `MILESTONE_COMPLETED` | Milestone ditandai selesai |
+| `PROJECT_COMPLETED` | Project ditandai selesai |
 | `BUDGET_WARNING` | Budget usage ≥ 80% |
 | `BUDGET_OVER_LIMIT` | Budget usage ≥ 100% |
+| `HANDOVER_CREATED` | Handover dibuat (notify receiver + konfirmasi ke sender) |
 | `HANDOVER_SENT` | Handover dibuat (notify receiver) |
 | `HANDOVER_RECEIVED` | Handover ditandai diterima (notify sender) |
 
@@ -1061,5 +1098,3 @@ docker compose down -v
 ```
 
 ---
-
-*Dokumen ini di-generate bersamaan dengan implementasi PPMS Phase 0–7. Perbarui setiap kali ada perubahan API, schema, atau arsitektur yang signifikan.*

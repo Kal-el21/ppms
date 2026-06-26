@@ -10,10 +10,13 @@ import RequestFormPage from "../features/project-requests/pages/RequestFormPage"
 import RequestDetailPage from "../features/project-requests/pages/RequestDetailPage";
 import ProjectListPage from "../features/projects/pages/ProjectListPage";
 import ProjectDetailPage from "../features/projects/pages/ProjectDetailPage";
+import TaskDetailPage from "../features/tasks/pages/TaskDetailPage";
+import MilestoneDetailPage from "../features/milestones/pages/MilestoneDetailPage";
 import AuditLogPage from "@/features/audit/pages/AuditLogPage";
 import ReportingPage from "@/features/reporting/pages/ReportingPage";
 import NotificationPreferencesPage from "@/features/notifications/pages/NotificationPreferencesPage";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
+import ApprovalWorkflowPage from "@/features/approval/pages/ApprovalWorkflowPage";
 
 
 function AppRouter() {
@@ -32,6 +35,8 @@ function AppRouter() {
             <Route path="/project-requests/:id/edit" element={<RequestFormPage />} />
             <Route path="/projects" element={<ProjectListPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
+            <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailPage />} />
+            <Route path="/projects/:projectId/milestones/:milestoneId" element={<MilestoneDetailPage />} />
             <Route path="/reporting" element={<ReportingPage />} />
             <Route path="/notification-preferences" element={<NotificationPreferencesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
@@ -39,6 +44,7 @@ function AppRouter() {
             <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
               <Route path="/users" element={<UsersPage />} />
               <Route path="/audit-logs" element={<AuditLogPage />} />
+              <Route path="/approval-workflows" element={<ApprovalWorkflowPage />} />
             </Route>
           </Route>
         </Route>

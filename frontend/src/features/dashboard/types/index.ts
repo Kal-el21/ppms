@@ -11,6 +11,8 @@ export interface DashboardSummary {
   total_projects: number;
   active_projects: number;
   completed_projects: number;
+  total_tasks: number;
+  completed_tasks: number;
   pending_requests: number;
   overdue_tasks: number;
   total_budget_usage_percentage: number;

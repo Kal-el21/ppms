@@ -15,6 +15,7 @@ const (
 type Project struct {
 	ID               uint64  `gorm:"primaryKey" json:"id"`
 	ProjectRequestID *uint64 `json:"project_request_id"`
+	ProjectCode      string  `gorm:"unique" json:"project_code,omitempty"`
 
 	Name        string `gorm:"not null" json:"name"`
 	Description string `json:"description"`
@@ -22,9 +23,12 @@ type Project struct {
 	StartDate *time.Time `json:"start_date"`
 	EndDate   *time.Time `json:"end_date"`
 
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+
 	Status ProjectStatus `gorm:"not null;default:PLANNED" json:"status"`
 
 	CreatedBy uint64 `gorm:"not null" json:"created_by"`
+	UpdatedBy *uint64 `json:"updated_by,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

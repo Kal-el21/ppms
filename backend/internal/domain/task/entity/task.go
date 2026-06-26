@@ -35,13 +35,16 @@ type Task struct {
 	StartDate *time.Time `json:"start_date"`
 	DueDate   *time.Time `json:"due_date"`
 
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+
 	CreatedBy uint64 `gorm:"not null" json:"created_by"`
+	UpdatedBy *uint64 `json:"updated_by,omitempty"`
+	DeletedBy *uint64 `json:"deleted_by,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
-	DeletedBy *uint64    `json:"deleted_by,omitempty"`
 
 	Version int `gorm:"default:1" json:"version"`
 }

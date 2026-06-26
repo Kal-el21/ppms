@@ -10,6 +10,8 @@ import (
 	domainerrors "github.com/Kal-el21/backend/internal/domain/project_request/errors"
 	"github.com/Kal-el21/backend/internal/domain/project_request/repository"
 	"github.com/Kal-el21/backend/internal/domain/project_request/statemachine"
+	userentity "github.com/Kal-el21/backend/internal/domain/user/entity"
+	userrepository "github.com/Kal-el21/backend/internal/domain/user/repository"
 	"github.com/Kal-el21/backend/internal/events"
 	apperrors "github.com/Kal-el21/backend/internal/shared/errors"
 	"gorm.io/gorm"
@@ -33,6 +35,7 @@ type requestService struct {
 	requestRepo     repository.RequestRepository
 	revisionRepo    repository.RevisionRepository
 	approvalRepo    repository.ApprovalRepository
+	userRepo        userrepository.UserRepository
 	provisioningSvc projectservice.ProvisioningService
 	eventBus        *events.Bus
 }
@@ -41,6 +44,7 @@ func NewRequestService(
 	requestRepo repository.RequestRepository,
 	revisionRepo repository.RevisionRepository,
 	approvalRepo repository.ApprovalRepository,
+	userRepo userrepository.UserRepository,
 	provisioningSvc projectservice.ProvisioningService,
 	eventBus *events.Bus,
 ) RequestService {
@@ -48,6 +52,7 @@ func NewRequestService(
 		requestRepo:     requestRepo,
 		revisionRepo:    revisionRepo,
 		approvalRepo:    approvalRepo,
+		userRepo:        userRepo,
 		provisioningSvc: provisioningSvc,
 		eventBus:        eventBus,
 	}
@@ -181,20 +186,36 @@ func (s *requestService) Review(id uint64, reviewerID uint64, req dto.ReviewRequ
 		return nil, err
 	}
 
-	if request.Status != entity.StatusUnderReview {
-		return nil, apperrors.New(apperrors.ErrInvalidStateTransition, "only requests under review can be reviewed")
+	if request.Status != entity.StatusUnderReview && request.Status != entity.StatusRevised {
+		return nil, apperrors.New(apperrors.ErrInvalidStateTransition, "only requests under review or revised requests can be reviewed")
 	}
 
 	var newStatus entity.RequestStatus
 	var eventName string
+	now := time.Now()
+	var selectedProjectManagerID *uint64
 
 	switch req.Action {
 	case "APPROVED":
+		projectManagerID, err := s.validateProjectManager(req.ProjectManagerID)
+		if err != nil {
+			return nil, err
+		}
+		selectedProjectManagerID = &projectManagerID
 		newStatus = entity.StatusApproved
 		eventName = "project.request.approved"
-	case "REJECTED", "REQUEST_REVISION":
+		request.ApprovedAt = &now
+		request.RejectedAt = nil
+	case "REJECTED":
 		newStatus = entity.StatusRejected
 		eventName = "project.request.rejected"
+		request.RejectedAt = &now
+		request.ApprovedAt = nil
+	case "REQUEST_REVISION":
+		newStatus = entity.StatusRevisionRequested
+		eventName = "project.request.revision_requested"
+		request.ApprovedAt = nil
+		request.RejectedAt = nil
 	default:
 		return nil, apperrors.New(apperrors.ErrValidation, "invalid review action")
 	}
@@ -217,6 +238,7 @@ func (s *requestService) Review(id uint64, reviewerID uint64, req dto.ReviewRequ
 		ReviewedBy:       reviewerID,
 		Action:           entity.ApprovalAction(req.Action),
 		Comment:          req.Comment,
+		ProjectManagerID: selectedProjectManagerID,
 	}
 
 	if err := s.approvalRepo.Create(approval); err != nil {
@@ -231,24 +253,51 @@ func (s *requestService) Review(id uint64, reviewerID uint64, req dto.ReviewRequ
 	// FR-05.01: Auto-create project saat request APPROVED
 	if newStatus == entity.StatusApproved {
 		if _, err := s.provisioningSvc.CreateFromApprovedRequest(
-			updated.ID, updated.Title, updated.Description, updated.RequesterID,
+			updated.ID, updated.Title, updated.Description, updated.RequesterID, *selectedProjectManagerID,
 		); err != nil {
 			return nil, err
 		}
 	}
 
+	eventData := map[string]interface{}{
+		"request_id":   updated.ID,
+		"title":        updated.Title,
+		"requester_id": updated.RequesterID,
+		"reviewer_id":  reviewerID,
+		"comment":      req.Comment,
+	}
+	if selectedProjectManagerID != nil {
+		eventData["project_manager_id"] = *selectedProjectManagerID
+	}
+
 	s.eventBus.Publish(events.Event{
 		Name: eventName,
-		Data: map[string]interface{}{
-			"request_id":   updated.ID,
-			"title":        updated.Title,
-			"requester_id": updated.RequesterID,
-			"reviewer_id":  reviewerID,
-			"comment":      req.Comment,
-		},
+		Data: eventData,
 	})
 
 	return updated, nil
+}
+
+func (s *requestService) validateProjectManager(projectManagerID *uint64) (uint64, error) {
+	if projectManagerID == nil || *projectManagerID == 0 {
+		return 0, apperrors.New(apperrors.ErrValidation, "project manager is required when approving a request")
+	}
+
+	pm, err := s.userRepo.FindByID(*projectManagerID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, apperrors.New(apperrors.ErrValidation, "selected project manager was not found")
+		}
+		return 0, err
+	}
+	if !pm.IsActive {
+		return 0, apperrors.New(apperrors.ErrValidation, "selected project manager must be an active user")
+	}
+	if pm.SystemRole == userentity.RoleViewer {
+		return 0, apperrors.New(apperrors.ErrValidation, "viewer users cannot be assigned as project manager")
+	}
+
+	return pm.ID, nil
 }
 
 func (s *requestService) Revise(id uint64, requesterID uint64, req dto.ReviseRequest) (*entity.ProjectRequest, error) {
@@ -257,7 +306,18 @@ func (s *requestService) Revise(id uint64, requesterID uint64, req dto.ReviseReq
 		return nil, err
 	}
 
-	if err := statemachine.ValidateTransition(request.Status, entity.StatusRevised); err != nil {
+	transitionFrom := request.Status
+	if request.Status == entity.StatusRejected {
+		isLegacyRevisionRequest, err := s.isLegacyRevisionRequest(id)
+		if err != nil {
+			return nil, err
+		}
+		if isLegacyRevisionRequest {
+			transitionFrom = entity.StatusRevisionRequested
+		}
+	}
+
+	if err := statemachine.ValidateTransition(transitionFrom, entity.StatusRevised); err != nil {
 		return nil, err
 	}
 
@@ -289,6 +349,7 @@ func (s *requestService) Revise(id uint64, requesterID uint64, req dto.ReviseReq
 	request.BusinessGoal = req.BusinessGoal
 	request.ExpectedOutcome = req.ExpectedOutcome
 	request.EstimatedBudget = req.EstimatedBudget
+	request.CurrentRevision = request.CurrentRevision + 1
 	request.Status = entity.StatusRevised
 
 	rows, err := s.requestRepo.UpdateWithVersionCheck(request, request.Version)
@@ -299,7 +360,28 @@ func (s *requestService) Revise(id uint64, requesterID uint64, req dto.ReviseReq
 		return nil, domainerrors.ErrVersionMismatch
 	}
 
+	s.eventBus.Publish(events.Event{
+		Name: "project.request.revised",
+		Data: map[string]interface{}{
+			"request_id":   request.ID,
+			"requester_id": requesterID,
+			"title":        request.Title,
+		},
+	})
+
 	return s.requestRepo.FindByID(id)
+}
+
+func (s *requestService) isLegacyRevisionRequest(id uint64) (bool, error) {
+	approvals, err := s.approvalRepo.FindByRequestID(id)
+	if err != nil {
+		return false, err
+	}
+	if len(approvals) == 0 {
+		return false, nil
+	}
+
+	return approvals[len(approvals)-1].Action == entity.ActionRequestRevision, nil
 }
 
 func (s *requestService) GetByID(id uint64, requesterID uint64, isAdmin bool) (*entity.ProjectRequest, error) {

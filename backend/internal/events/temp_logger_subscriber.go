@@ -10,6 +10,7 @@ func RegisterTempLoggerSubscriber(bus *Bus) {
 		"project.request.submitted",
 		"project.request.approved",
 		"project.request.rejected",
+		"project.request.revision_requested",
 	}
 
 	for _, eventName := range events {

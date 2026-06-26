@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import axiosInstance from "../../../api/axiosInstance";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../../lib/theme";
+import { useLogin, useVerifyOTP, useResendOTP } from "../hooks/useAuthActions";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
@@ -36,19 +36,20 @@ export default function LoginPage() {
   const loginForm = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
   const otpForm = useForm<OTPFormValues>({ resolver: zodResolver(otpSchema) });
 
+  const { mutateAsync: doLogin } = useLogin();
+
   const handleLogin = async (values: LoginFormValues) => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const res = await axiosInstance.post("/auth/login", values);
-      const data = res.data.data;
+      const data = await doLogin(values);
 
-      if (data.two_fa_required) {
-        setOtpSessionToken(data.otp_session_token);
-        setStep("otp");
-      } else {
+      if ("user" in data) {
         login(data.user);
         navigate("/dashboard");
+      } else {
+        setOtpSessionToken(data.otp_session_token);
+        setStep("otp");
       }
     } catch (err: any) {
       setErrorMsg(getErrorMessage(err?.response?.data?.code, err?.response?.data?.message));
@@ -57,15 +58,14 @@ export default function LoginPage() {
     }
   };
 
+  const { mutateAsync: doVerify } = useVerifyOTP();
+
   const handleVerifyOTP = async (values: OTPFormValues) => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const res = await axiosInstance.post("/auth/verify-otp", {
-        otp_session_token: otpSessionToken,
-        otp_code: values.otp_code,
-      });
-      login(res.data.data.user);
+      const data = await doVerify({ otp_session_token: otpSessionToken, otp_code: values.otp_code });
+      login(data.user);
       navigate("/dashboard");
     } catch (err: any) {
       setErrorMsg(getErrorMessage(err?.response?.data?.code, err?.response?.data?.message));
@@ -74,9 +74,11 @@ export default function LoginPage() {
     }
   };
 
-  const handleResendOTP = async () => {
+  const { mutate: doResend } = useResendOTP();
+
+  const handleResendOTP = () => {
     try {
-      await axiosInstance.post("/auth/resend-otp", { otp_session_token: otpSessionToken });
+      doResend(otpSessionToken);
     } catch { /* ignore */ }
   };
 

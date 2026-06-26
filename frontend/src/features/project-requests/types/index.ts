@@ -1,4 +1,11 @@
-export type RequestStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "REVISED";
+export type RequestStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "REVISION_REQUESTED"
+  | "REVISED";
 
 export interface ProjectRequest {
   id: number;
@@ -31,6 +38,7 @@ export interface RequestApproval {
   reviewed_by: number;
   action: "APPROVED" | "REJECTED" | "REQUEST_REVISION";
   comment: string;
+  project_manager_id?: number | null;
   created_at: string;
 }
 
@@ -49,6 +57,7 @@ export interface UpdateDraftPayload extends CreateDraftPayload {
 export interface ReviewPayload {
   action: "APPROVED" | "REJECTED" | "REQUEST_REVISION";
   comment: string;
+  project_manager_id?: number;
 }
 
 export interface RevisePayload extends CreateDraftPayload {

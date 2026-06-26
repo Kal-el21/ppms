@@ -43,6 +43,7 @@ export function getStatusColor(status: string): BadgeColor {
     UNDER_REVIEW: "amber",
     APPROVED: "green",
     REJECTED: "red",
+    REVISION_REQUESTED: "amber",
     REVISED: "gray",
     // Project
     PLANNED: "gray",

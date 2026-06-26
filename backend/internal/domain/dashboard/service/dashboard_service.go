@@ -18,7 +18,7 @@ func NewDashboardService(repo repository.DashboardRepository) DashboardService {
 }
 
 func (s *dashboardService) GetSummary(userID uint64, isAdmin bool) (*dto.DashboardSummary, error) {
-	total, err := s.repo.CountTotalProjects(userID, isAdmin)
+	totalProjects, err := s.repo.CountTotalProjects(userID, isAdmin)
 	if err != nil {
 		return nil, err
 	}
@@ -29,6 +29,16 @@ func (s *dashboardService) GetSummary(userID uint64, isAdmin bool) (*dto.Dashboa
 	}
 
 	completed, err := s.repo.CountProjectsByStatus("COMPLETED", userID, isAdmin)
+	if err != nil {
+		return nil, err
+	}
+
+	totalTasks, err := s.repo.CountTotalTasks(userID, isAdmin)
+	if err != nil {
+		return nil, err
+	}
+
+	completedTasks, err := s.repo.CountCompletedTasks(userID, isAdmin)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +60,6 @@ func (s *dashboardService) GetSummary(userID uint64, isAdmin bool) (*dto.Dashboa
 
 	var recentActivities []dto.RecentActivity
 	if isAdmin {
-		// Audit log hanya untuk ADMIN (Permission Matrix section 15: View Audit Logs hanya ADMIN)
 		recentActivities, err = s.repo.GetRecentActivities(10)
 		if err != nil {
 			return nil, err
@@ -58,9 +67,11 @@ func (s *dashboardService) GetSummary(userID uint64, isAdmin bool) (*dto.Dashboa
 	}
 
 	return &dto.DashboardSummary{
-		TotalProjects:     total,
+		TotalProjects:     totalProjects,
 		ActiveProjects:    active,
 		CompletedProjects: completed,
+		TotalTasks:        totalTasks,
+		CompletedTasks:    completedTasks,
 		PendingRequests:   pendingRequests,
 		OverdueTasks:      overdueTasks,
 		TotalBudgetUsage:  budgetUsage,

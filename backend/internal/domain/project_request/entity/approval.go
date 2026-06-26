@@ -19,6 +19,8 @@ type ProjectRequestApproval struct {
 	Action     ApprovalAction `gorm:"not null" json:"action"`
 	Comment    string         `json:"comment"`
 
+	ProjectManagerID *uint64 `json:"project_manager_id,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
 

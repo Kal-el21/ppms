@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { projectApi } from "../api/projectApi";
 import { useToast } from "../../../components/ui/toast";
+import type { Project } from "../types";
 
 export function useProjectList(page = 1, limit = 20, status?: string) {
   return useQuery({
@@ -41,6 +42,23 @@ export function useChangeProjectStatus(id: number) {
   });
 }
 
+export function useUpdateProject(id: number) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (payload: Partial<Project> & { version: number }) =>
+      projectApi.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["projects", id] });
+      toast.success("Project berhasil diperbarui");
+    },
+    onError: (error: any) => {
+      toast.error("Gagal memperbarui project", error?.friendlyMessage);
+    },
+  });
+}
+
 export function useAddMember(id: number) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -68,6 +86,22 @@ export function useRemoveMember(projectId: number) {
     },
     onError: (error: any) => {
       toast.error("Gagal menghapus member", error?.friendlyMessage);
+    },
+  });
+}
+
+export function useChangeMemberRole(projectId: number) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ memberId, projectRole }: { memberId: number; projectRole: string }) =>
+      projectApi.changeMemberRole(projectId, memberId, projectRole),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects", projectId, "members"] });
+      toast.success("Role member berhasil diperbarui");
+    },
+    onError: (error: any) => {
+      toast.error("Gagal memperbarui role member", error?.friendlyMessage);
     },
   });
 }

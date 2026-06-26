@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/Kal-el21/backend/configs"
@@ -27,7 +26,6 @@ import (
 	divisionservice "github.com/Kal-el21/backend/internal/domain/division/service"
 
 	// ── User ─────────────────────────────────────────────────────────────────
-	userentity "github.com/Kal-el21/backend/internal/domain/user/entity"
 	userhandler "github.com/Kal-el21/backend/internal/domain/user/handler"
 	userrepo "github.com/Kal-el21/backend/internal/domain/user/repository"
 	userservice "github.com/Kal-el21/backend/internal/domain/user/service"
@@ -58,6 +56,9 @@ import (
 	budgetservice "github.com/Kal-el21/backend/internal/domain/budget/service"
 
 	// ── Attachment ────────────────────────────────────────────────────────────
+	approvalhandler "github.com/Kal-el21/backend/internal/domain/approval/handler"
+	approvalrepo "github.com/Kal-el21/backend/internal/domain/approval/repository"
+	approvalservice "github.com/Kal-el21/backend/internal/domain/approval/service"
 	attachmenthandler "github.com/Kal-el21/backend/internal/domain/attachment/handler"
 	attachmentrepo "github.com/Kal-el21/backend/internal/domain/attachment/repository"
 	attachmentservice "github.com/Kal-el21/backend/internal/domain/attachment/service"
@@ -166,6 +167,8 @@ func main() {
 
 	// Attachment
 	attachmentRepository := attachmentrepo.NewAttachmentRepository(db)
+	approvalWorkflowRepository := approvalrepo.NewApprovalWorkflowRepository(db)
+	approvalLevelRepository := approvalrepo.NewApprovalLevelRepository(db)
 
 	// Handover
 	handoverRepository := handoverrepo.NewHandoverRepository(db)
@@ -211,7 +214,7 @@ func main() {
 	// Project Request
 	provisioningSvc := projectservice.NewProvisioningService(projectRepository, memberRepository)
 	requestSvc := requestservice.NewRequestService(
-		requestRepository, revisionRepository, approvalRepository, provisioningSvc, eventBus,
+		requestRepository, revisionRepository, approvalRepository, userRepository, provisioningSvc, eventBus,
 	)
 
 	// Task (must be created before Milestone so it can satisfy TaskProgressProvider)
@@ -220,10 +223,10 @@ func main() {
 	)
 
 	// Milestone (receives taskSvc as TaskProgressProvider)
-	milestoneSvc := milestoneservice.NewMilestoneService(milestoneRepository, taskSvc)
+	milestoneSvc := milestoneservice.NewMilestoneService(milestoneRepository, taskSvc, eventBus)
 
 	// Project (receives milestoneSvc as MilestoneProgressProvider)
-	projectSvc := projectservice.NewProjectService(projectRepository, milestoneSvc)
+	projectSvc := projectservice.NewProjectService(projectRepository, milestoneSvc, eventBus)
 	memberSvc := projectservice.NewMemberService(memberRepository)
 
 	// Budget
@@ -234,6 +237,8 @@ func main() {
 	attachmentSvc := attachmentservice.NewAttachmentService(
 		attachmentRepository, minioClient, ownershipResolver, requestOwnershipAdapter,
 	)
+	approvalWorkflowSvc := approvalservice.NewApprovalWorkflowService(approvalWorkflowRepository)
+	approvalLevelSvc := approvalservice.NewApprovalLevelService(approvalLevelRepository)
 
 	// Handover
 	handoverSvc := handoverservice.NewHandoverService(handoverRepository, eventBus)
@@ -270,6 +275,7 @@ func main() {
 	budgetHdl := budgethandler.NewBudgetHandler(budgetSvc, auditSvc)
 	transactionHdl := budgethandler.NewTransactionHandler(transactionSvc, auditSvc)
 	attachmentHdl := attachmenthandler.NewAttachmentHandler(attachmentSvc, auditSvc)
+	approvalHdl := approvalhandler.NewApprovalHandler(approvalWorkflowSvc, approvalLevelSvc)
 	handoverHdl := handoverhandler.NewHandoverHandler(handoverSvc, auditSvc)
 
 	notificationHdl := notificationhandler.NewNotificationHandler(notificationSvc, preferenceSvc)
@@ -286,137 +292,70 @@ func main() {
 	// they can close over the repository variables without creating circular
 	// imports between domain packages and the events package.
 	// =========================================================================
-	events.RegisterNotificationSubscriber(eventBus, notificationSvc)
+	events.RegisterNotificationSubscriber(eventBus, notificationSvc, userRepository, memberRepository, handoverRepository)
 
-	// Notify all ADMINs when a new project request is submitted.
-	eventBus.Subscribe("project.request.submitted", func(e events.Event) {
-		data := e.Data.(map[string]interface{})
-		requestID := data["request_id"].(uint64)
-		title := data["title"].(string)
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		dueSoonNotified := make(map[uint64]time.Time)
+		for range ticker.C {
+			now := time.Now()
 
-		admins, err := userRepository.FindBySystemRole(userentity.RoleAdmin)
-		if err != nil {
-			logger.Log.Error().Err(err).Msg("event project.request.submitted: failed to fetch admins")
-			return
-		}
-		for _, admin := range admins {
-			_ = notificationSvc.Create(notificationservice.CreateNotificationParams{
-				UserID:     admin.ID,
-				Type:       "REQUEST_SUBMITTED",
-				Title:      "New Project Request Submitted",
-				Message:    "A new request \"" + title + "\" requires your review.",
-				EntityType: "PROJECT_REQUEST",
-				EntityID:   &requestID,
-				ActionURL:  "/project-requests/" + strconv.FormatUint(requestID, 10),
-			})
-		}
-	})
-
-	// Notify all PROJECT_MANAGERs of a project when a task in that project is completed.
-	eventBus.Subscribe("task.completed", func(e events.Event) {
-		data := e.Data.(map[string]interface{})
-		taskID := data["task_id"].(uint64)
-		title := data["title"].(string)
-
-		projectIDRaw, ok := data["project_id"]
-		if !ok {
-			return
-		}
-		projectID := projectIDRaw.(uint64)
-
-		members, err := memberRepository.FindActiveByProject(projectID)
-		if err != nil {
-			logger.Log.Error().Err(err).Msg("event task.completed: failed to fetch project members")
-			return
-		}
-		for _, m := range members {
-			if string(m.ProjectRole) != "PROJECT_MANAGER" {
-				continue
+			overdueTasks, err := taskRepository.FindOverdue()
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("scheduler: failed to find overdue tasks")
+			} else {
+				for _, task := range overdueTasks {
+					assignees, err := assigneeRepository.FindActiveByTaskID(task.ID)
+					if err != nil {
+						logger.Log.Error().Err(err).Uint64("task_id", task.ID).Msg("scheduler: failed to find assignees for overdue task")
+						continue
+					}
+					for _, assignee := range assignees {
+						eventBus.Publish(events.Event{
+							Name: "task.overdue",
+							Data: map[string]interface{}{
+								"task_id":     task.ID,
+								"title":       task.Title,
+								"project_id":  task.ProjectID,
+								"assignee_id": assignee.UserID,
+							},
+						})
+					}
+				}
 			}
-			_ = notificationSvc.Create(notificationservice.CreateNotificationParams{
-				UserID:     m.UserID,
-				Type:       "TASK_COMPLETED",
-				Title:      "Task Completed",
-				Message:    "Task \"" + title + "\" has been marked as done.",
-				EntityType: "TASK",
-				EntityID:   &taskID,
-				ActionURL:  "/projects/" + strconv.FormatUint(projectID, 10),
-			})
-		}
-	})
 
-	// Notify PROJECT_MANAGERs when budget usage crosses the 80% warning threshold.
-	eventBus.Subscribe("budget.warning", func(e events.Event) {
-		data := e.Data.(map[string]interface{})
-		projectID := data["project_id"].(uint64)
+			dueSoonTasks, err := taskRepository.FindDueSoon()
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("scheduler: failed to find due soon tasks")
+			} else {
+				for _, task := range dueSoonTasks {
+					if lastNotified, ok := dueSoonNotified[task.ID]; ok && now.Sub(lastNotified) < 24*time.Hour {
+						continue
+					}
 
-		members, err := memberRepository.FindActiveByProject(projectID)
-		if err != nil {
-			logger.Log.Error().Err(err).Msg("event budget.warning: failed to fetch project members")
-			return
-		}
-		for _, m := range members {
-			if string(m.ProjectRole) != "PROJECT_MANAGER" {
-				continue
+					assignees, err := assigneeRepository.FindActiveByTaskID(task.ID)
+					if err != nil {
+						logger.Log.Error().Err(err).Uint64("task_id", task.ID).Msg("scheduler: failed to find assignees for due soon task")
+						continue
+					}
+					for _, assignee := range assignees {
+						eventBus.Publish(events.Event{
+							Name: "task.due_soon",
+							Data: map[string]interface{}{
+								"task_id":     task.ID,
+								"title":       task.Title,
+								"project_id":  task.ProjectID,
+								"assignee_id": assignee.UserID,
+								"due_date":    task.DueDate.Format("2006-01-02"),
+							},
+						})
+					}
+					dueSoonNotified[task.ID] = now
+				}
 			}
-			_ = notificationSvc.Create(notificationservice.CreateNotificationParams{
-				UserID:     m.UserID,
-				Type:       "BUDGET_WARNING",
-				Title:      "Budget Warning",
-				Message:    "Project budget usage has crossed the 80% threshold.",
-				EntityType: "PROJECT",
-				EntityID:   &projectID,
-				ActionURL:  "/projects/" + strconv.FormatUint(projectID, 10),
-			})
 		}
-	})
-
-	// Notify PROJECT_MANAGERs when budget usage exceeds 100%.
-	eventBus.Subscribe("budget.over_limit", func(e events.Event) {
-		data := e.Data.(map[string]interface{})
-		projectID := data["project_id"].(uint64)
-
-		members, err := memberRepository.FindActiveByProject(projectID)
-		if err != nil {
-			logger.Log.Error().Err(err).Msg("event budget.over_limit: failed to fetch project members")
-			return
-		}
-		for _, m := range members {
-			if string(m.ProjectRole) != "PROJECT_MANAGER" {
-				continue
-			}
-			_ = notificationSvc.Create(notificationservice.CreateNotificationParams{
-				UserID:     m.UserID,
-				Type:       "BUDGET_OVER_LIMIT",
-				Title:      "Budget Over Limit",
-				Message:    "Project budget usage has exceeded 100% of allocated budget.",
-				EntityType: "PROJECT",
-				EntityID:   &projectID,
-				ActionURL:  "/projects/" + strconv.FormatUint(projectID, 10),
-			})
-		}
-	})
-
-	// Notify the original sender when their handover is marked as received.
-	eventBus.Subscribe("handover.received", func(e events.Event) {
-		data := e.Data.(map[string]interface{})
-		handoverID := data["handover_id"].(uint64)
-
-		handover, err := handoverRepository.FindByID(handoverID)
-		if err != nil {
-			logger.Log.Error().Err(err).Msg("event handover.received: failed to fetch handover")
-			return
-		}
-		_ = notificationSvc.Create(notificationservice.CreateNotificationParams{
-			UserID:     handover.SenderID,
-			Type:       "HANDOVER_RECEIVED",
-			Title:      "Handover Received",
-			Message:    "Your sent handover has been marked as received.",
-			EntityType: "HANDOVER",
-			EntityID:   &handoverID,
-			ActionURL:  "/handovers/" + strconv.FormatUint(handoverID, 10),
-		})
-	})
+	}()
 
 	// =========================================================================
 	// 11. RATE LIMITERS (Phase 7)
@@ -627,6 +566,7 @@ func main() {
 		taskDetail := protected.Group("/projects/:id/tasks/:taskId")
 		taskDetail.Use(middleware.ProjectContextMiddleware(memberRepository))
 		{
+			taskDetail.GET("", taskHdl.GetByID)
 			taskDetail.PUT("",
 				middleware.RequireProjectRole("PROJECT_MANAGER"),
 				taskHdl.Update,
@@ -711,6 +651,16 @@ func main() {
 		)
 
 		// ── Reporting: system-wide (ADMIN only; project-scoped is above) ─────
+		approvalWorkflows := protected.Group("/approval-workflows")
+		approvalWorkflows.Use(middleware.RequireSystemRole("ADMIN"))
+		{
+			approvalWorkflows.GET("", approvalHdl.ListWorkflows)
+			approvalWorkflows.POST("", approvalHdl.CreateWorkflow)
+			approvalWorkflows.GET("/:id", approvalHdl.GetWorkflow)
+			approvalWorkflows.GET("/:id/levels", approvalHdl.GetLevels)
+			approvalWorkflows.POST("/:id/levels", approvalHdl.CreateLevel)
+		}
+
 		protected.POST("/reports/generate",
 			middleware.RequireSystemRole("ADMIN"),
 			reportingHdl.Generate,

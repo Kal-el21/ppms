@@ -3,3 +3,5 @@
 tmp/
 ppms-api
 vendor/
+api.exe
+.cache

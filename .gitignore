@@ -4,3 +4,5 @@
 backups/
 .agents
 docs
+.gocache
+test_output.txt

@@ -22,6 +22,11 @@ export const userApi = {
     return res.data.data;
   },
 
+
+  update: async (id: number, payload: { full_name: string; division_id?: number | null }) => {
+    const res = await axiosInstance.put<ApiResponse<User>>(`/users/${id}`, payload);
+    return res.data.data;
+  },
   assignRole: async (id: number, system_role: string) => {
     const res = await axiosInstance.patch<ApiResponse<User>>(`/users/${id}/role`, { system_role });
     return res.data.data;

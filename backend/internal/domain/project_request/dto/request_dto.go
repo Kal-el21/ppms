@@ -20,8 +20,9 @@ type UpdateDraftRequest struct {
 }
 
 type ReviewRequest struct {
-	Action  string `json:"action" validate:"required,oneof=APPROVED REJECTED REQUEST_REVISION"`
-	Comment string `json:"comment" validate:"max=1000"`
+	Action           string  `json:"action" validate:"required,oneof=APPROVED REJECTED REQUEST_REVISION"`
+	Comment          string  `json:"comment" validate:"max=1000"`
+	ProjectManagerID *uint64 `json:"project_manager_id,omitempty"`
 }
 
 type ReviseRequest struct {
@@ -36,13 +37,17 @@ type ReviseRequest struct {
 type ProjectRequestResponse struct {
 	ID              uint64     `json:"id"`
 	RequesterID     uint64     `json:"requester_id"`
+	RequestNumber   string     `json:"request_number,omitempty"`
 	Title           string     `json:"title"`
 	Description     string     `json:"description"`
 	BusinessGoal    string     `json:"business_goal"`
 	ExpectedOutcome string     `json:"expected_outcome"`
 	EstimatedBudget float64    `json:"estimated_budget"`
 	Status          string     `json:"status"`
+	CurrentRevision int        `json:"current_revision"`
 	SubmittedAt     *time.Time `json:"submitted_at,omitempty"`
+	ApprovedAt      *time.Time `json:"approved_at,omitempty"`
+	RejectedAt      *time.Time `json:"rejected_at,omitempty"`
 	Version         int        `json:"version"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
@@ -60,9 +65,10 @@ type RevisionResponse struct {
 }
 
 type ApprovalResponse struct {
-	ID         uint64    `json:"id"`
-	ReviewedBy uint64    `json:"reviewed_by"`
-	Action     string    `json:"action"`
-	Comment    string    `json:"comment"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID               uint64    `json:"id"`
+	ReviewedBy       uint64    `json:"reviewed_by"`
+	Action           string    `json:"action"`
+	Comment          string    `json:"comment"`
+	ProjectManagerID *uint64   `json:"project_manager_id,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
 }

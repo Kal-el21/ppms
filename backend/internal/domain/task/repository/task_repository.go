@@ -10,6 +10,8 @@ type TaskRepository interface {
 	FindByID(id uint64) (*entity.Task, error)
 	FindByProjectID(projectID uint64) ([]entity.Task, error)
 	FindByMilestoneID(milestoneID uint64) ([]entity.Task, error)
+	FindOverdue() ([]entity.Task, error)
+	FindDueSoon() ([]entity.Task, error)
 	UpdateWithVersionCheck(task *entity.Task, expectedVersion int) (int64, error)
 	UpdateProgressWithVersionCheck(id uint64, progress int, expectedVersion int) (int64, error)
 	Delete(id uint64, deletedBy uint64) error
@@ -86,4 +88,18 @@ func (r *taskRepository) Delete(id uint64, deletedBy uint64) error {
 			"deleted_at": gorm.Expr("now()"),
 			"deleted_by": deletedBy,
 		}).Error
+}
+
+func (r *taskRepository) FindOverdue() ([]entity.Task, error) {
+	var tasks []entity.Task
+	err := r.db.Where("deleted_at IS NULL AND due_date IS NOT NULL AND due_date < now() AND status != ? AND status != ?", entity.StatusDone, entity.StatusCancelled).
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) FindDueSoon() ([]entity.Task, error) {
+	var tasks []entity.Task
+	err := r.db.Where("deleted_at IS NULL AND due_date IS NOT NULL AND due_date >= now() AND due_date <= now() + interval '24 hours' AND status != ? AND status != ?", entity.StatusDone, entity.StatusCancelled).
+		Find(&tasks).Error
+	return tasks, err
 }

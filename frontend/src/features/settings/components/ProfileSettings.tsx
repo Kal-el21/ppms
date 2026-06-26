@@ -1,53 +1,33 @@
 import { useState, useRef } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
-import axiosInstance from "../../../api/axiosInstance";
+import { useUpdateProfile, useUploadProfilePhoto } from "../hooks/useSettings";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Avatar } from "../../../components/ui/avatar";
-import { useToast } from "../../../components/ui/toast";
 
 export default function ProfileSettings() {
-  const { user, updateUser } = useAuth(); // bukan login
-  const toast = useToast();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { mutate: updateProfile, isPending: isSaving } = useUpdateProfile();
+  const { mutate: uploadPhoto, isPending: isUploading } = useUploadProfilePhoto();
 
   const [fullName, setFullName] = useState(user?.full_name || "");
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
 
   const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const res = await axiosInstance.put("/me", { full_name: fullName });
-      updateUser({ full_name: res.data.data.full_name });
-      toast.success("Profile berhasil disimpan");
-    } catch (err: any) {
-      toast.error("Gagal menyimpan profile", err?.friendlyMessage);
-    } finally {
-      setIsSaving(false);
-    }
+    updateProfile({ full_name: fullName });
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("photo", file);
-      const res = await axiosInstance.post("/me/photo", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      updateUser({ profile_photo_url: res.data.data.photo_url });
-      toast.success("Foto profile berhasil diupdate");
-    } catch (err: any) {
-      toast.error("Gagal upload foto", err?.friendlyMessage);
-    } finally {
-      setIsUploading(false);
-      e.target.value = "";
-    }
+
+    uploadPhoto(file, {
+      onSettled: () => {
+        e.target.value = "";
+      },
+    });
   };
 
   return (

@@ -2,12 +2,34 @@ import { useTheme } from "../../lib/theme";
 import GlobalSearchBar from "./GlobalSearchBar";
 import NotificationBell from "./NotificationBell";
 
-export default function Navbar() {
+interface NavbarProps {
+  onToggleSidebar: () => void;
+  sidebarOpen: boolean;
+}
+
+export default function Navbar({ onToggleSidebar, sidebarOpen }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="h-14 flex-shrink-0 bg-surface border-b border-border flex items-center justify-between px-6 sticky top-0 z-10">
-      <GlobalSearchBar />
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onToggleSidebar}
+          className="flex items-center justify-center h-8 w-8 rounded-md border border-border bg-surface hover:bg-surface-secondary cursor-pointer"
+          aria-label={sidebarOpen ? "Tutup sidebar" : "Buka sidebar"}
+        >
+          {sidebarOpen ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+          )}
+        </button>
+        <GlobalSearchBar />
+      </div>
 
       <div className="flex items-center gap-2">
         <button

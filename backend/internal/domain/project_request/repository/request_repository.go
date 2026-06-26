@@ -79,7 +79,10 @@ func (r *requestRepository) UpdateWithVersionCheck(req *entity.ProjectRequest, e
 			"expected_outcome": req.ExpectedOutcome,
 			"estimated_budget": req.EstimatedBudget,
 			"status":           req.Status,
+			"current_revision": req.CurrentRevision,
 			"submitted_at":     req.SubmittedAt,
+			"approved_at":      req.ApprovedAt,
+			"rejected_at":      req.RejectedAt,
 			"version":          gorm.Expr("version + 1"),
 		})
 

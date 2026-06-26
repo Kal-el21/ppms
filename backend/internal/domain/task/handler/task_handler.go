@@ -75,6 +75,22 @@ func (h *TaskHandler) GetList(c *gin.Context) {
 	response.Success(c, http.StatusOK, tasks, "")
 }
 
+func (h *TaskHandler) GetByID(c *gin.Context) {
+	taskID, err := strconv.ParseUint(c.Param("taskId"), 10, 64)
+	if err != nil {
+		response.Error(c, apperrors.New(apperrors.ErrValidation, "invalid task id"))
+		return
+	}
+
+	task, err := h.service.GetByID(taskID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, task, "")
+}
+
 func (h *TaskHandler) Update(c *gin.Context) {
 	taskID, err := strconv.ParseUint(c.Param("taskId"), 10, 64)
 	if err != nil {

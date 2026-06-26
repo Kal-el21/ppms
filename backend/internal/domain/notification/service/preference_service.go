@@ -9,7 +9,8 @@ import (
 // notificationTypes adalah daftar semua tipe notifikasi yang didukung sistem,
 // dipakai untuk menampilkan preference list lengkap meski user belum pernah set apa pun.
 var notificationTypes = []string{
-	"REQUEST_SUBMITTED", "REQUEST_APPROVED", "REQUEST_REJECTED",
+	"REQUEST_SUBMITTED", "REQUEST_APPROVED", "REQUEST_REJECTED", "REVISION_REQUESTED",
+	"REQUEST_REVISED",
 	"TASK_ASSIGNED", "TASK_COMPLETED",
 	"BUDGET_WARNING", "BUDGET_OVER_LIMIT",
 	"HANDOVER_SENT", "HANDOVER_RECEIVED",

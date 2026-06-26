@@ -26,3 +26,12 @@ export function useMarkReceived(projectId: number) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, "handovers"] }),
   });
 }
+
+export function useMarkReturned(projectId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ handoverId, reason, version }: { handoverId: number; reason: string; version: number }) =>
+      handoverApi.markReturned(projectId, handoverId, reason, version),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects", projectId, "handovers"] }),
+  });
+}

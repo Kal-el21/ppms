@@ -2,11 +2,15 @@ package service
 
 import (
 	"errors"
+	"net/mail"
+	"strings"
 
 	"github.com/Kal-el21/backend/internal/domain/user/dto"
 	"github.com/Kal-el21/backend/internal/domain/user/entity"
 	domainerrors "github.com/Kal-el21/backend/internal/domain/user/errors"
 	"github.com/Kal-el21/backend/internal/domain/user/repository"
+	apperrors "github.com/Kal-el21/backend/internal/shared/errors"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -35,14 +39,34 @@ func NewUserService(repo repository.UserRepository) UserService {
 }
 
 func (s *userService) Create(req dto.CreateUserRequest, bcryptCost int) (*entity.User, error) {
+	req.FullName = strings.TrimSpace(req.FullName)
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	req.SystemRole = strings.ToUpper(strings.TrimSpace(req.SystemRole))
+
+	if req.FullName == "" {
+		return nil, domainerrors.ErrInvalidFullName
+	}
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return nil, apperrors.New(apperrors.ErrValidation, "email is invalid")
+	}
+	if len(req.Password) < 8 {
+		return nil, apperrors.New(apperrors.ErrValidation, "password must be at least 8 characters")
+	}
+	if !isValidSystemRole(req.SystemRole) {
+		return nil, apperrors.New(apperrors.ErrValidation, "system role is invalid")
+	}
+
 	existing, err := s.repo.FindByEmail(req.Email)
 	if err == nil && existing != nil {
 		return nil, domainerrors.ErrEmailTaken
 	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, mapUserPersistenceError(err)
+	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcryptCost)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.New(apperrors.ErrInternal, "failed to hash password")
 	}
 
 	user := &entity.User{
@@ -55,10 +79,36 @@ func (s *userService) Create(req dto.CreateUserRequest, bcryptCost int) (*entity
 	}
 
 	if err := s.repo.Create(user); err != nil {
-		return nil, err
+		return nil, mapUserPersistenceError(err)
 	}
 
 	return user, nil
+}
+
+func isValidSystemRole(role string) bool {
+	switch entity.SystemRole(role) {
+	case entity.RoleAdmin, entity.RoleUser, entity.RoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
+func mapUserPersistenceError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505":
+			return domainerrors.ErrEmailTaken
+		case "23503":
+			return domainerrors.ErrInvalidDivision
+		case "23502", "23514", "22P02":
+			return apperrors.New(apperrors.ErrValidation, "user data is invalid")
+		case "42703", "42P01":
+			return apperrors.New(apperrors.ErrInternal, "database schema is not up to date; please run migrations")
+		}
+	}
+	return err
 }
 
 func (s *userService) GetByID(id uint64) (*entity.User, error) {
@@ -144,6 +194,10 @@ func (s *userService) Restore(id uint64) error {
 }
 
 func (s *userService) UpdateProfile(id uint64, req dto.UpdateProfileRequest) (*entity.User, error) {
+	if strings.TrimSpace(req.FullName) == "" {
+		return nil, domainerrors.ErrInvalidFullName
+	}
+
 	user, err := s.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -160,7 +214,10 @@ func (s *userService) UpdateProfile(id uint64, req dto.UpdateProfileRequest) (*e
 }
 
 func (s *userService) UpdateProfilePhoto(id uint64, photoURL string) error {
-	return s.repo.UpdateField(id, "profile_photo_url", photoURL)
+	if err := s.repo.UpdateField(id, "profile_photo_url", photoURL); err != nil {
+		return mapUserPersistenceError(err)
+	}
+	return nil
 }
 
 func (s *userService) Toggle2FA(id uint64, enabled bool) error {

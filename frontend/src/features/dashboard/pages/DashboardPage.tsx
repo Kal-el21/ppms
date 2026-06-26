@@ -29,6 +29,8 @@ export default function DashboardPage() {
   const totalProjects = data?.total_projects ?? 0;
   const activeProjects = data?.active_projects ?? 0;
   const completedProjects = data?.completed_projects ?? 0;
+  const totalTasks = data?.total_tasks ?? 0;
+  const completedTasks = data?.completed_tasks ?? 0;
   const pendingRequests = data?.pending_requests ?? 0;
   const overdueTasks = data?.overdue_tasks ?? 0;
   const budgetUsage = data?.total_budget_usage_percentage ?? 0;
@@ -58,7 +60,7 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5 mb-7">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3.5 mb-7">
         <MetricCard label="Total Projects" value={totalProjects} iconColor="blue"
           icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7l4-4h6l4 4h4v13H3z"/></svg>}
         />
@@ -67,6 +69,12 @@ export default function DashboardPage() {
         />
         <MetricCard label="Completed Projects" value={completedProjects} iconColor="teal"
           icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>}
+        />
+        <MetricCard label="Total Tasks" value={totalTasks} iconColor="indigo"
+          icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>}
+        />
+        <MetricCard label="Completed Tasks" value={completedTasks} iconColor="emerald"
+          icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.3-8.8"/><path d="M22 4L12 14.01l-3-3"/></svg>}
         />
         <MetricCard label="Pending Requests" value={pendingRequests} iconColor="amber"
           delta={{ neutral: "Menunggu review" }}
