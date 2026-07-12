@@ -20,6 +20,11 @@ type Project struct {
 	Name        string `gorm:"not null" json:"name"`
 	Description string `json:"description"`
 
+	Category       string  `json:"category"`
+	InitiationType *string `json:"initiation_type,omitempty"`
+	Priority       string  `gorm:"not null;default:MEDIUM" json:"priority"`
+	Notes          string  `json:"notes"`
+
 	StartDate *time.Time `json:"start_date"`
 	EndDate   *time.Time `json:"end_date"`
 
@@ -27,7 +32,9 @@ type Project struct {
 
 	Status ProjectStatus `gorm:"not null;default:PLANNED" json:"status"`
 
-	CreatedBy uint64 `gorm:"not null" json:"created_by"`
+	Health *string `gorm:"column:health" json:"health,omitempty"`
+
+	CreatedBy uint64  `gorm:"not null" json:"created_by"`
 	UpdatedBy *uint64 `json:"updated_by,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`

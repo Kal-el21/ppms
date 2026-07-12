@@ -115,7 +115,18 @@ func (s *milestoneService) Update(id uint64, req dto.UpdateMilestoneRequest) (*e
 		return nil, domainerrors.ErrVersionMismatch
 	}
 
-	return s.repo.FindByID(id)
+	updated, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Progress project bergantung pada milestone → picu recalc health.
+	s.eventBus.Publish(events.Event{
+		Name: "milestone.updated",
+		Data: map[string]interface{}{"project_id": updated.ProjectID},
+	})
+
+	return updated, nil
 }
 
 func (s *milestoneService) ChangeStatus(id uint64, req dto.ChangeMilestoneStatusRequest) (*entity.Milestone, error) {
@@ -155,6 +166,12 @@ func (s *milestoneService) ChangeStatus(id uint64, req dto.ChangeMilestoneStatus
 			},
 		})
 	}
+
+	// Progress project bergantung pada milestone → picu recalc health.
+	s.eventBus.Publish(events.Event{
+		Name: "milestone.updated",
+		Data: map[string]interface{}{"project_id": updated.ProjectID},
+	})
 
 	return updated, nil
 }

@@ -14,6 +14,15 @@ type ProjectRequestRevision struct {
 	ExpectedOutcome string  `json:"expected_outcome"`
 	EstimatedBudget float64 `json:"estimated_budget"`
 
+	Category          string          `json:"category"`
+	InitiationType    *InitiationType `json:"initiation_type,omitempty"`
+	Priority          RequestPriority `gorm:"not null;default:MEDIUM" json:"priority"`
+	ProposedStartDate *time.Time      `json:"proposed_start_date,omitempty"`
+	ProposedEndDate   *time.Time      `json:"proposed_end_date,omitempty"`
+	BudgetType        *BudgetType     `json:"budget_type,omitempty"`
+	BudgetName        string          `json:"budget_name"`
+	Notes             string          `json:"notes"`
+
 	RevisionReason string `json:"revision_reason"`
 
 	RevisedBy uint64 `gorm:"not null" json:"revised_by"`

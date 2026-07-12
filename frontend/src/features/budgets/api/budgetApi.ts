@@ -1,6 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { ApiResponse } from "../../../types";
-import type { Budget, Transaction } from "../types";
+import type { Budget, Transaction, PortfolioBudgetYear, BudgetType } from "../types";
 
 export const budgetApi = {
   getByProject: async (projectId: number) => {
@@ -8,20 +8,23 @@ export const budgetApi = {
     return res.data.data;
   },
 
-  create: async (projectId: number, allocatedBudget: number) => {
-    const res = await axiosInstance.post<ApiResponse<Budget>>(`/projects/${projectId}/budget`, {
-      allocated_budget: allocatedBudget,
-    });
+  create: async (
+    projectId: number,
+    payload: { allocated_budget: number; budget_type?: BudgetType; budget_name?: string }
+  ) => {
+    const res = await axiosInstance.post<ApiResponse<Budget>>(`/projects/${projectId}/budget`, payload);
     return res.data.data;
   },
 
-
-  update: async (projectId: number, budgetId: number, allocatedBudget: number) => {
-    const res = await axiosInstance.put<ApiResponse<Budget>>(`/projects/${projectId}/budget/${budgetId}`, {
-      allocated_budget: allocatedBudget,
-    });
+  update: async (
+    projectId: number,
+    budgetId: number,
+    payload: { allocated_budget: number; budget_type?: BudgetType; budget_name?: string; version: number }
+  ) => {
+    const res = await axiosInstance.put<ApiResponse<Budget>>(`/projects/${projectId}/budget/${budgetId}`, payload);
     return res.data.data;
   },
+
   getTransactions: async (projectId: number, budgetId: number) => {
     const res = await axiosInstance.get<ApiResponse<Transaction[]>>(
       `/projects/${projectId}/budget/${budgetId}/transactions`
@@ -46,5 +49,30 @@ export const budgetApi = {
       payload
     );
     return res.data.data;
+  },
+};
+
+export const budgetYearApi = {
+  getAll: async () => {
+    const res = await axiosInstance.get<ApiResponse<PortfolioBudgetYear[]>>(`/admin/budget-years`);
+    return res.data.data;
+  },
+
+  create: async (payload: { year: number; capex_ceiling: number; opex_ceiling: number }) => {
+    const res = await axiosInstance.post<ApiResponse<PortfolioBudgetYear>>(`/admin/budget-years`, payload);
+    return res.data.data;
+  },
+
+  update: async (
+    id: number,
+    payload: { capex_ceiling: number; opex_ceiling: number; version: number }
+  ) => {
+    const res = await axiosInstance.put<ApiResponse<PortfolioBudgetYear>>(`/admin/budget-years/${id}`, payload);
+    return res.data.data;
+  },
+
+  remove: async (id: number) => {
+    const res = await axiosInstance.delete<ApiResponse<null>>(`/admin/budget-years/${id}`);
+    return res.data;
   },
 };

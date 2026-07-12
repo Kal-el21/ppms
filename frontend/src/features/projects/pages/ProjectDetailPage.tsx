@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useState } from "react";
 import type { Task, TaskPriority } from "../../tasks/types";
 import type { Milestone } from "../../milestones/types";
-import type { ProjectRole } from "../types";
+import type { ProjectRole, ProjectPriority, InitiationType } from "../types";
 import {
   useProjectDetail,
   useProjectMembers,
@@ -55,6 +55,19 @@ const icon = (d: string, size = 22) => (
     <path d={d} />
   </svg>
 );
+
+const getHealthColor = (health: string) => {
+  switch (health) {
+    case "GREEN":
+      return "green" as const;
+    case "YELLOW":
+      return "amber" as const;
+    case "RED":
+      return "red" as const;
+    default:
+      return "gray" as const;
+  }
+};
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -124,6 +137,10 @@ export default function ProjectDetailPage() {
   const [projectEditForm, setProjectEditForm] = useState({
     name: "",
     description: "",
+    category: "",
+    initiation_type: "" as string,
+    priority: "MEDIUM" as ProjectPriority,
+    notes: "",
     start_date: "",
     end_date: "",
   });
@@ -259,6 +276,10 @@ export default function ProjectDetailPage() {
     setProjectEditForm({
       name: project.name,
       description: project.description || "",
+      category: project.category || "",
+      initiation_type: project.initiation_type ?? "",
+      priority: project.priority,
+      notes: project.notes || "",
       start_date: project.start_date?.slice(0, 10) ?? "",
       end_date: project.end_date?.slice(0, 10) ?? "",
     });
@@ -272,6 +293,10 @@ export default function ProjectDetailPage() {
       {
         name: projectEditForm.name,
         description: projectEditForm.description,
+        category: projectEditForm.category,
+        initiation_type: (projectEditForm.initiation_type || null) as InitiationType | null,
+        priority: projectEditForm.priority,
+        notes: projectEditForm.notes,
         start_date: projectEditForm.start_date || null,
         end_date: projectEditForm.end_date || null,
         version: project.version,
@@ -322,6 +347,18 @@ export default function ProjectDetailPage() {
                 <AvatarStack names={pmMembers.map((m) => `User ${m.user_id}`)} />
               </div>
             )}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {project.project_code && (
+                <StatusBadge color="gray">{project.project_code}</StatusBadge>
+              )}
+              {project.category && <StatusBadge color="gray">{project.category}</StatusBadge>}
+              {project.initiation_type && <StatusBadge color="blue">{project.initiation_type}</StatusBadge>}
+              {project.priority && <StatusBadge color={getStatusColor(project.priority)}>{project.priority}</StatusBadge>}
+              {project.health && <StatusBadge color={getHealthColor(project.health)}>{project.health}</StatusBadge>}
+            </div>
+            {project.notes && (
+              <p className="text-[12px] text-ink-tertiary mt-2.5 m-0 whitespace-pre-wrap">{project.notes}</p>
+            )}
             <div className="mt-3">
               <Button size="sm" variant="outline" onClick={startEditProject}>
                 Edit project
@@ -359,12 +396,46 @@ export default function ProjectDetailPage() {
                 <Input value={projectEditForm.description} onChange={(e) => setProjectEditForm({ ...projectEditForm, description: e.target.value })} />
               </div>
               <div>
+                <Label>Kategori</Label>
+                <Input value={projectEditForm.category} onChange={(e) => setProjectEditForm({ ...projectEditForm, category: e.target.value })} />
+              </div>
+              <div>
+                <Label>Jenis inisiasi</Label>
+                <Select
+                  value={projectEditForm.initiation_type}
+                  onChange={(e) => setProjectEditForm({ ...projectEditForm, initiation_type: e.target.value })}
+                  options={[
+                    { value: "", label: "Tidak diatur" },
+                    { value: "NEW_INITIATIVE", label: "New Initiative" },
+                    { value: "RENEWAL", label: "Renewal" },
+                    { value: "ENHANCEMENT", label: "Enhancement" },
+                  ]}
+                />
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select
+                  value={projectEditForm.priority}
+                  onChange={(e) => setProjectEditForm({ ...projectEditForm, priority: e.target.value as ProjectPriority })}
+                  options={[
+                    { value: "LOW", label: "Low" },
+                    { value: "MEDIUM", label: "Medium" },
+                    { value: "HIGH", label: "High" },
+                    { value: "URGENT", label: "Urgent" },
+                  ]}
+                />
+              </div>
+              <div>
                 <Label>Tanggal mulai</Label>
                 <Input type="date" value={projectEditForm.start_date} onChange={(e) => setProjectEditForm({ ...projectEditForm, start_date: e.target.value })} />
               </div>
               <div>
                 <Label>Tanggal selesai</Label>
                 <Input type="date" value={projectEditForm.end_date} onChange={(e) => setProjectEditForm({ ...projectEditForm, end_date: e.target.value })} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Catatan</Label>
+                <Input value={projectEditForm.notes} onChange={(e) => setProjectEditForm({ ...projectEditForm, notes: e.target.value })} />
               </div>
             </div>
             <div className="flex gap-2">

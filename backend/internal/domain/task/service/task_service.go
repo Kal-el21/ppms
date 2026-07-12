@@ -208,7 +208,18 @@ func (s *taskService) UpdateProgress(id uint64, userID uint64, isAssignedOnly bo
 		return nil, domainerrors.ErrVersionMismatch
 	}
 
-	return s.repo.FindByID(id)
+	updated, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Progress milestone (dan project) bergantung pada progress task.
+	s.eventBus.Publish(events.Event{
+		Name: "task.progress_updated",
+		Data: map[string]interface{}{"task_id": updated.ID, "project_id": updated.ProjectID},
+	})
+
+	return updated, nil
 }
 
 func (s *taskService) AssignUsers(taskID uint64, assignedBy uint64, req dto.AssignUserRequest) error {

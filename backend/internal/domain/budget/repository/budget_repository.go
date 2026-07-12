@@ -47,6 +47,8 @@ func (r *budgetRepository) UpdateWithVersionCheck(budget *entity.Budget, expecte
 		Where("id = ? AND version = ?", budget.ID, expectedVersion).
 		Updates(map[string]interface{}{
 			"allocated_budget": budget.AllocatedBudget,
+			"budget_type":      budget.BudgetType,
+			"budget_name":      budget.BudgetName,
 			"version":          gorm.Expr("version + 1"),
 		})
 

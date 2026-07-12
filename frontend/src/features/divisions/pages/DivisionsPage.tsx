@@ -1,11 +1,22 @@
 import { useState } from "react";
 import { useDivisions, useCreateDivision, useUpdateDivision, useDeleteDivision } from "../hooks/useDivisions";
 import { useAuth } from "../../auth/context/AuthContext";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { PageHeader } from "../../../components/shared/PageHeader";
-import { EmptyState } from "../../../components/shared/EmptyState";
-import { Card, CardContent } from "../../../components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { BulkActionsDropdown } from "@/components/shared/BulkActionsDropdown";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
+import { useTableSelection } from "@/components/shared/useTableSelection";
 
 export default function DivisionsPage() {
   const { user } = useAuth();
@@ -20,13 +31,27 @@ export default function DivisionsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingIds, setDeletingIds] = useState<number[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
+  void showForm;
+  void deleteDialogOpen;
 
   const isAdmin = user?.system_role === "ADMIN";
 
+  const {
+    selectedIds,
+    toggle,
+    toggleAll,
+    clear,
+    selectedCount,
+    isAllSelected,
+    isIndeterminate,
+  } = useTableSelection<number>();
+
   if (isLoading) return <div className="text-ink-secondary text-sm">Memuat divisions...</div>;
 
+  const divisions = data ?? [];
 
   const handleEdit = (id: number, name: string, description: string) => {
     setEditingId(id);
@@ -40,14 +65,21 @@ export default function DivisionsPage() {
     setEditingId(null);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus divisi ini?")) return;
-    setDeletingId(id);
-    try {
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setDeletingIds(ids);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (deletingIds.length === 0) return;
+    for (const id of deletingIds) {
       await deleteDivision(id);
-    } finally {
-      setDeletingId(null);
     }
+    setDeletingIds([]);
+    setDeleteDialogOpen(false);
+    clear();
   };
 
   const handleCreate = () => {
@@ -68,20 +100,27 @@ export default function DivisionsPage() {
     <div>
       <PageHeader
         title="Divisions"
-        subtitle={`${data?.length ?? 0} divisi terdaftar`}
+        subtitle={`${divisions.length} divisi terdaftar`}
         actions={
           isAdmin ? (
-            <Button variant="primary" onClick={() => setShowForm((v) => !v)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              Tambah divisi
-            </Button>
+            <BulkActionsDropdown
+              selectedCount={selectedCount}
+              onEdit={
+                selectedCount === 1
+                  ? () => {
+                      const id = Array.from(selectedIds)[0];
+                      const division = divisions.find((d) => d.id === id);
+                      if (division) handleEdit(division.id, division.name, division.description || "");
+                    }
+                  : undefined
+              }
+              onDelete={handleBulkDelete}
+            />
           ) : undefined
         }
       />
 
-      {showForm && (
+      {showForm && isAdmin && (
         <Card className="mb-5">
           <CardContent className="pt-5">
             <div className="flex gap-2">
@@ -98,7 +137,7 @@ export default function DivisionsPage() {
         </Card>
       )}
 
-      {!data || data.length === 0 ? (
+      {!divisions || divisions.length === 0 ? (
         <EmptyState
           icon={
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -108,58 +147,101 @@ export default function DivisionsPage() {
           title="Belum ada divisi"
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {data.map((division) => (
-            <Card key={division.id}>
-              <CardContent className="pt-5">
-                {editingId === division.id ? (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Nama divisi"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Deskripsi"
-                      value={editDesc}
-                      onChange={(e) => setEditDesc(e.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Button variant="primary" size="sm" onClick={handleSaveEdit}>Simpan</Button>
-                      <Button variant="outline" size="sm" onClick={() => setEditingId(null)}>Batal</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="h-9 w-9 rounded-md bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 flex items-center justify-center font-semibold text-[13px] mb-3">{
-                      division.name.slice(0, 2).toUpperCase()
-                    }</div>
-                    <p className="text-[13.5px] font-semibold m-0 mb-1">{division.name}</p>
-                    <p className="text-[12px] text-ink-tertiary m-0 leading-relaxed">
-                      {division.description || "Tidak ada deskripsi"}
-                    </p>
-                  </>
-                )}
-                {isAdmin && editingId !== division.id && (
-                  <div className="flex gap-2 mt-3">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(division.id, division.name, division.description || "")}>
-                      Edit
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => handleDelete(division.id)}
-                      disabled={deletingId === division.id}
-                    >
-                      {deletingId === division.id ? "Menghapus..." : "Hapus"}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {isAdmin && (
+                    <TableHead style={{ width: 40 }}>
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected(divisions.map((d) => d.id))}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isIndeterminate(divisions.map((d) => d.id));
+                        }}
+                        onChange={(e) => toggleAll(divisions.map((d) => d.id), e.target.checked)}
+                      />
+                    </TableHead>
+                  )}
+                  <TableHead style={{ width: 50 }}>No</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  {isAdmin && editingId !== null && <TableHead style={{ width: 100 }}>Aksi</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {divisions.map((division, index) => (
+                  <TableRow key={division.id}>
+                    {isAdmin && (
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(division.id)}
+                          onChange={() => toggle(division.id)}
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell className="text-ink-secondary text-[13px]">{index + 1}</TableCell>
+                    <TableCell>
+                      {editingId === division.id ? (
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-48"
+                        />
+                      ) : (
+                        <span className="font-medium text-ink-primary">{division.name}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === division.id ? (
+                        <Input
+                          value={editDesc}
+                          onChange={(e) => setEditDesc(e.target.value)}
+                          className="w-64"
+                        />
+                      ) : (
+                        <span className="text-ink-secondary text-[13px]">
+                          {division.description || "Tidak ada deskripsi"}
+                        </span>
+                      )}
+                    </TableCell>
+                    {isAdmin && editingId === division.id && (
+                      <TableCell>
+                        <div className="flex gap-1.5">
+                          <Button size="sm" variant="primary" onClick={handleSaveEdit}>
+                            Simpan
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                            Batal
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        title="Hapus divisi"
+        description={
+          deletingIds.length === 1
+            ? "Apakah Anda yakin ingin menghapus divisi ini?"
+            : `Apakah Anda yakin ingin menghapus ${deletingIds.length} divisi yang dipilih?`
+        }
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setDeletingIds([]);
+        }}
+        isDeleting={deletingIds.length > 0}
+      />
     </div>
   );
 }

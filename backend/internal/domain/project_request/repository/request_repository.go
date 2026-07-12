@@ -73,17 +73,25 @@ func (r *requestRepository) UpdateWithVersionCheck(req *entity.ProjectRequest, e
 	result := r.db.Model(&entity.ProjectRequest{}).
 		Where("id = ? AND version = ?", req.ID, expectedVersion).
 		Updates(map[string]interface{}{
-			"title":            req.Title,
-			"description":      req.Description,
-			"business_goal":    req.BusinessGoal,
-			"expected_outcome": req.ExpectedOutcome,
-			"estimated_budget": req.EstimatedBudget,
-			"status":           req.Status,
-			"current_revision": req.CurrentRevision,
-			"submitted_at":     req.SubmittedAt,
-			"approved_at":      req.ApprovedAt,
-			"rejected_at":      req.RejectedAt,
-			"version":          gorm.Expr("version + 1"),
+			"title":               req.Title,
+			"description":         req.Description,
+			"business_goal":       req.BusinessGoal,
+			"expected_outcome":    req.ExpectedOutcome,
+			"estimated_budget":    req.EstimatedBudget,
+			"category":            req.Category,
+			"initiation_type":     req.InitiationType,
+			"priority":            req.Priority,
+			"proposed_start_date": req.ProposedStartDate,
+			"proposed_end_date":   req.ProposedEndDate,
+			"budget_type":         req.BudgetType,
+			"budget_name":         req.BudgetName,
+			"notes":               req.Notes,
+			"status":              req.Status,
+			"current_revision":    req.CurrentRevision,
+			"submitted_at":        req.SubmittedAt,
+			"approved_at":         req.ApprovedAt,
+			"rejected_at":         req.RejectedAt,
+			"version":             gorm.Expr("version + 1"),
 		})
 
 	return result.RowsAffected, result.Error

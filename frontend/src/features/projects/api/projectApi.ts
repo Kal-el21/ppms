@@ -1,17 +1,34 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { ApiResponse, PaginatedResponse } from "../../../types";
-import type { Project, ProjectMember } from "../types";
+import type { Project, ProjectMember, ProjectDeadline, CreateProjectDirectRequest } from "../types";
 
 export const projectApi = {
-  getList: async (page = 1, limit = 20, status?: string) => {
+  getList: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    budget_type?: string;
+    initiation_type?: string;
+    priority?: string;
+    sort?: string;
+    progress?: string;
+  } = {}) => {
     const res = await axiosInstance.get<PaginatedResponse<Project>>("/projects", {
-      params: { page, limit, status },
+      params,
     });
     return res.data;
   },
 
   getById: async (id: number) => {
     const res = await axiosInstance.get<ApiResponse<Project>>(`/projects/${id}`);
+    return res.data.data;
+  },
+
+  getDeadlines: async (window = "90") => {
+    const res = await axiosInstance.get<ApiResponse<ProjectDeadline[]>>("/projects/deadline", {
+      params: { window },
+    });
     return res.data.data;
   },
 
@@ -48,5 +65,14 @@ export const projectApi = {
 
   removeMember: async (projectId: number, memberId: number) => {
     await axiosInstance.delete(`/projects/${projectId}/members/${memberId}`);
+  },
+
+  createDirect: async (payload: CreateProjectDirectRequest) => {
+    const res = await axiosInstance.post<ApiResponse<Project>>("/admin/projects", payload);
+    return res.data.data;
+  },
+
+  delete: async (id: number) => {
+    await axiosInstance.delete(`/projects/${id}`);
   },
 };

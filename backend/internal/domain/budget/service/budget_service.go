@@ -2,16 +2,18 @@ package service
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/Kal-el21/backend/internal/domain/budget/dto"
 	"github.com/Kal-el21/backend/internal/domain/budget/entity"
 	domainerrors "github.com/Kal-el21/backend/internal/domain/budget/errors"
 	"github.com/Kal-el21/backend/internal/domain/budget/repository"
+	apperrors "github.com/Kal-el21/backend/internal/shared/errors"
 	"gorm.io/gorm"
 )
 
 type BudgetService interface {
-	Create(projectID uint64, req dto.CreateBudgetRequest) (*entity.Budget, error)
+	Create(projectID uint64, createdBy uint64, req dto.CreateBudgetRequest) (*entity.Budget, error)
 	GetByProjectID(projectID uint64) (*dto.BudgetResponse, error)
 	Update(id uint64, req dto.UpdateBudgetRequest) (*entity.Budget, error)
 }
@@ -25,15 +27,30 @@ func NewBudgetService(repo repository.BudgetRepository, txRepo repository.Transa
 	return &budgetService{repo: repo, txRepo: txRepo}
 }
 
-func (s *budgetService) Create(projectID uint64, req dto.CreateBudgetRequest) (*entity.Budget, error) {
+func (s *budgetService) Create(projectID uint64, createdBy uint64, req dto.CreateBudgetRequest) (*entity.Budget, error) {
 	existing, _ := s.repo.FindByProjectID(projectID)
 	if existing != nil {
 		return nil, domainerrors.ErrBudgetAlreadyExists
 	}
+	if req.AllocatedBudget <= 0 {
+		return nil, apperrors.New(apperrors.ErrValidation, "allocated_budget must be greater than 0")
+	}
+
+	budgetType, err := normalizeBudgetType(req.BudgetType)
+	if err != nil {
+		return nil, err
+	}
+	budgetName, err := normalizeBudgetName(req.BudgetName)
+	if err != nil {
+		return nil, err
+	}
 
 	budget := &entity.Budget{
 		ProjectID:       projectID,
+		BudgetType:      budgetType,
+		BudgetName:      budgetName,
 		AllocatedBudget: req.AllocatedBudget,
+		CreatedBy:       createdBy,
 	}
 
 	if err := s.repo.Create(budget); err != nil {
@@ -66,6 +83,8 @@ func (s *budgetService) GetByProjectID(projectID uint64) (*dto.BudgetResponse, e
 	return &dto.BudgetResponse{
 		ID:              budget.ID,
 		ProjectID:       budget.ProjectID,
+		BudgetType:      budget.BudgetType,
+		BudgetName:      budget.BudgetName,
 		AllocatedBudget: budget.AllocatedBudget,
 		UsedBudget:      used,
 		RemainingBudget: remaining,
@@ -82,8 +101,22 @@ func (s *budgetService) Update(id uint64, req dto.UpdateBudgetRequest) (*entity.
 		}
 		return nil, err
 	}
+	if req.AllocatedBudget <= 0 {
+		return nil, apperrors.New(apperrors.ErrValidation, "allocated_budget must be greater than 0")
+	}
+
+	budgetType, err := normalizeBudgetType(req.BudgetType)
+	if err != nil {
+		return nil, err
+	}
+	budgetName, err := normalizeBudgetName(req.BudgetName)
+	if err != nil {
+		return nil, err
+	}
 
 	budget.AllocatedBudget = req.AllocatedBudget
+	budget.BudgetType = budgetType
+	budget.BudgetName = budgetName
 
 	rows, err := s.repo.UpdateWithVersionCheck(budget, req.Version)
 	if err != nil {
@@ -94,4 +127,25 @@ func (s *budgetService) Update(id uint64, req dto.UpdateBudgetRequest) (*entity.
 	}
 
 	return s.repo.FindByID(id)
+}
+
+func normalizeBudgetType(value string) (*string, error) {
+	normalized := strings.TrimSpace(value)
+	normalized = strings.ToUpper(normalized)
+	normalized = strings.NewReplacer(" ", "_", "-", "_").Replace(normalized)
+	if normalized == "" {
+		return nil, nil
+	}
+	if normalized != "CAPEX" && normalized != "OPEX" {
+		return nil, apperrors.New(apperrors.ErrValidation, "budget_type is invalid")
+	}
+	return &normalized, nil
+}
+
+func normalizeBudgetName(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if len(value) > 200 {
+		return "", apperrors.New(apperrors.ErrValidation, "budget_name is too long")
+	}
+	return value, nil
 }

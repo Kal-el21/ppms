@@ -10,13 +10,17 @@ import RequestFormPage from "../features/project-requests/pages/RequestFormPage"
 import RequestDetailPage from "../features/project-requests/pages/RequestDetailPage";
 import ProjectListPage from "../features/projects/pages/ProjectListPage";
 import ProjectDetailPage from "../features/projects/pages/ProjectDetailPage";
+import AdminCreateProjectPage from "../features/projects/pages/AdminCreateProjectPage";
+import DeadlinePage from "../features/projects/pages/DeadlinePage";
 import TaskDetailPage from "../features/tasks/pages/TaskDetailPage";
 import MilestoneDetailPage from "../features/milestones/pages/MilestoneDetailPage";
 import AuditLogPage from "@/features/audit/pages/AuditLogPage";
 import ReportingPage from "@/features/reporting/pages/ReportingPage";
 import NotificationPreferencesPage from "@/features/notifications/pages/NotificationPreferencesPage";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
+import BudgetYearSettingsPage from "@/features/budgets/pages/BudgetYearSettingsPage";
 import ApprovalWorkflowPage from "@/features/approval/pages/ApprovalWorkflowPage";
+import ImportExportPage from "@/features/import-export/pages/ImportExportPage";
 
 
 function AppRouter() {
@@ -35,6 +39,7 @@ function AppRouter() {
             <Route path="/project-requests/:id/edit" element={<RequestFormPage />} />
             <Route path="/projects" element={<ProjectListPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
+            <Route path="/projects/deadline" element={<DeadlinePage />} />
             <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailPage />} />
             <Route path="/projects/:projectId/milestones/:milestoneId" element={<MilestoneDetailPage />} />
             <Route path="/reporting" element={<ReportingPage />} />
@@ -45,6 +50,9 @@ function AppRouter() {
               <Route path="/users" element={<UsersPage />} />
               <Route path="/audit-logs" element={<AuditLogPage />} />
               <Route path="/approval-workflows" element={<ApprovalWorkflowPage />} />
+              <Route path="/settings/budget-years" element={<BudgetYearSettingsPage />} />
+              <Route path="/settings/import-export" element={<ImportExportPage />} />
+              <Route path="/projects/new" element={<AdminCreateProjectPage />} />
             </Route>
           </Route>
         </Route>

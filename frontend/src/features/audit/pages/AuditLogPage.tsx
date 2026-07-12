@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useAuditList } from "../hooks/useAudit";
-import { StatusBadge } from "../../../components/ui/status-badge";
-import { Input } from "../../../components/ui/input";
-import { PageHeader } from "../../../components/shared/PageHeader";
-import { EmptyState } from "../../../components/shared/EmptyState";
-import { Pagination } from "../../../components/ui/pagination";
-import { TableSkeleton } from "../../../components/ui/skeleton";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { Pagination } from "@/components/ui/pagination";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -13,7 +13,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../../../components/ui/table";
+} from "@/components/ui/table";
+import { BulkActionsDropdown } from "@/components/shared/BulkActionsDropdown";
+import { useTableSelection } from "@/components/shared/useTableSelection";
 
 const moduleColor: Record<string, "blue" | "red" | "green" | "amber" | "gray"> = {
   auth: "blue",
@@ -42,10 +44,28 @@ export default function AuditLogPage() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useAuditList(page, LIMIT, module || undefined);
+  const rows = data?.data ?? [];
+  const total = data?.meta.total ?? 0;
+
+  const {
+    selectedIds,
+    toggle,
+    toggleAll,
+    clear,
+    selectedCount,
+    isAllSelected,
+    isIndeterminate,
+  } = useTableSelection<number>();
 
   return (
     <div>
-      <PageHeader title="Audit Logs" subtitle="Riwayat aktivitas penting di seluruh sistem" />
+      <PageHeader
+        title="Audit Logs"
+        subtitle="Riwayat aktivitas penting di seluruh sistem"
+        actions={
+          <BulkActionsDropdown selectedCount={selectedCount} />
+        }
+      />
 
       <div className="mb-5 max-w-xs">
         <Input
@@ -54,13 +74,14 @@ export default function AuditLogPage() {
           onChange={(e) => {
             setModule(e.target.value);
             setPage(1);
+            clear();
           }}
         />
       </div>
 
       {isLoading ? (
         <TableSkeleton rows={8} cols={5} />
-      ) : !data || data.data.length === 0 ? (
+      ) : rows.length === 0 ? (
         <EmptyState
           icon={
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -76,6 +97,17 @@ export default function AuditLogPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead style={{ width: 40 }}>
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected(rows.map((log) => log.id))}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isIndeterminate(rows.map((log) => log.id));
+                    }}
+                    onChange={(e) => toggleAll(rows.map((log) => log.id), e.target.checked)}
+                  />
+                </TableHead>
+                <TableHead style={{ width: 50 }}>No</TableHead>
                 <TableHead>Module</TableHead>
                 <TableHead>Action</TableHead>
                 <TableHead>Entity</TableHead>
@@ -84,8 +116,14 @@ export default function AuditLogPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.data.map((log) => (
+              {rows.map((log, index) => (
                 <TableRow key={log.id}>
+                  <TableCell>
+                    <input type="checkbox" checked={selectedIds.has(log.id)} onChange={() => toggle(log.id)} />
+                  </TableCell>
+                  <TableCell className="text-ink-secondary text-[13px]">
+                    {(page - 1) * LIMIT + index + 1}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge color={moduleColor[log.module] || "gray"}>{log.module}</StatusBadge>
                   </TableCell>
@@ -105,7 +143,7 @@ export default function AuditLogPage() {
           </Table>
           <Pagination
             page={page}
-            total={data.meta.total}
+            total={total}
             limit={LIMIT}
             onPageChange={setPage}
           />

@@ -14,6 +14,30 @@ const (
 	StatusRevised           RequestStatus = "REVISED"
 )
 
+type InitiationType string
+
+const (
+	InitiationNewInitiative InitiationType = "NEW_INITIATIVE"
+	InitiationRenewal       InitiationType = "RENEWAL"
+	InitiationEnhancement   InitiationType = "ENHANCEMENT"
+)
+
+type RequestPriority string
+
+const (
+	PriorityLow    RequestPriority = "LOW"
+	PriorityMedium RequestPriority = "MEDIUM"
+	PriorityHigh   RequestPriority = "HIGH"
+	PriorityUrgent RequestPriority = "URGENT"
+)
+
+type BudgetType string
+
+const (
+	BudgetTypeCapex BudgetType = "CAPEX"
+	BudgetTypeOpex  BudgetType = "OPEX"
+)
+
 type ProjectRequest struct {
 	ID          uint64 `gorm:"primaryKey" json:"id"`
 	RequesterID uint64 `gorm:"not null" json:"requester_id"`
@@ -26,6 +50,15 @@ type ProjectRequest struct {
 	BusinessGoal    string  `json:"business_goal"`
 	ExpectedOutcome string  `json:"expected_outcome"`
 	EstimatedBudget float64 `json:"estimated_budget"`
+
+	Category          string          `json:"category"`
+	InitiationType    *InitiationType `json:"initiation_type,omitempty"`
+	Priority          RequestPriority `gorm:"not null;default:MEDIUM" json:"priority"`
+	ProposedStartDate *time.Time      `json:"proposed_start_date,omitempty"`
+	ProposedEndDate   *time.Time      `json:"proposed_end_date,omitempty"`
+	BudgetType        *BudgetType     `json:"budget_type,omitempty"`
+	BudgetName        string          `json:"budget_name"`
+	Notes             string          `json:"notes"`
 
 	Status RequestStatus `gorm:"not null;default:DRAFT" json:"status"`
 

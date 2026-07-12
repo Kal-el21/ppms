@@ -1,7 +1,7 @@
 # PPMS — Project Portfolio Management System
 ## Technical Documentation
-**Version:** 1.0.0 (Phase 0–7 Complete)
-**Last Updated:** June 2026
+**Version:** 1.1.0 (Phase 0–10 Complete)
+**Last Updated:** July 2026
 
 ---
 
@@ -38,6 +38,8 @@ PPMS adalah aplikasi internal perusahaan untuk mengelola siklus hidup proyek dar
 - **Handover Management** — pencatatan pengiriman dan penerimaan dokumen fisik
 - **Notification System** — notifikasi real-time berbasis event, dapat di-mute per tipe
 - **Dashboard & Reporting** — ringkasan metrik, laporan PDF/Excel, global search
+- **Portfolio View** — daftar project dengan filter/sorting, health status, ringkasan budget CAPEX/OPEX, pagu tahunan, dan Admin Direct Create
+- **Import/Export** — backup & restore penuh seluruh data project dalam format JSON (ADMIN only)
 - **Audit Trail** — seluruh aktivitas penting tercatat dengan redaksi field sensitif
 
 ---
@@ -162,7 +164,8 @@ ppms-backend/
 │       ├── dashboard/             ← aggregation queries
 │       ├── audit/                 ← write-once audit log
 │       ├── reporting/             ← PDF & Excel generation
-│       └── search/                ← pg_trgm full-text search
+│       ├── search/                ← pg_trgm full-text search
+│       └── import_export/         ← full backup (export) & restore (import) JSON, ADMIN only
 ├── migrations/
 │   ├── 000001_init_schema.up.sql  ← semua 18 tabel + indexes
 │   ├── 000001_init_schema.down.sql
@@ -681,6 +684,36 @@ Production:   https://api.ppms.yourcompany.com/api/v1
 `type` options: `PROJECT`, `MILESTONE`, `TASK`, `BUDGET`, `HANDOVER`
 `format` options: `PDF`, `EXCEL`
 
+#### Admin / Portfolio (ADMIN only)
+| Method | Path | Deskripsi |
+|---|---|---|
+| POST | `/admin/projects` | Buat project langsung tanpa request workflow (auto-generate `project_code`, actor jadi PROJECT_MANAGER, budget opsional). Audit `CREATE_PROJECT_DIRECT`. |
+| GET | `/admin/budget-years` | List pagu tahunan CAPEX/OPEX |
+| POST | `/admin/budget-years` | Tambah pagu tahunan |
+| PUT | `/admin/budget-years/:id` | Update pagu tahunan (optimistic locking) |
+| DELETE | `/admin/budget-years/:id` | Hapus pagu tahunan |
+| GET | `/admin/export` | Download backup JSON seluruh project + relasi (members, milestones, tasks, budget, transactions). Audit `EXPORT_DATA`. |
+| POST | `/admin/import` | Upload backup JSON (multipart `file`) untuk restore. Tiap project dibuat ulang sebagai project baru dengan kode baru. Audit `IMPORT_DATA`. |
+
+#### Deadline / Portfolio (Semua authenticated, scope per role)
+| Method | Path | Deskripsi |
+|---|---|---|
+| GET | `/projects/deadline?window=<overdue\|30\|60\|90>` | Project yang mendekati / melewati deadline |
+
+**Import/Export JSON Backup**
+
+`GET /admin/export` mengembalikan file `ppms-backup-<timestamp>.json` berisi
+`{ version, exported_at, exported_by, projects: [...] }`. Setiap project menyertakan
+seluruh members, milestones (dengan `ref_id`), tasks (dengan `milestone_ref_id`),
+budget, dan transactions.
+
+`POST /admin/import` menerima file JSON tersebut (maks. 20MB). Import bersifat
+**non-destruktif**: tiap project dibuat sebagai project baru (`project_code` baru,
+`created_by` = admin yang mengimpor). Milestone `ref_id` dipetakan ulang ke id baru
+agar relasi task tetap konsisten. Member yang user-nya tidak ada akan dilewati, dan
+selalu dipastikan ada minimal satu PROJECT_MANAGER aktif (fallback ke actor).
+Response berisi ringkasan `{ total_projects, imported, skipped, errors, imported_project_ids }`.
+
 ---
 
 ## 9. Event Bus
@@ -871,7 +904,9 @@ curl -X POST https://api.ppms.yourcompany.com/api/v1/projects/5/reports/generate
 | `user` | CREATE_USER, UPDATE_USER, ASSIGN_ROLE, DEACTIVATE_USER, RESTORE_USER |
 | `division` | CREATE_DIVISION, UPDATE_DIVISION, DELETE_DIVISION |
 | `project_request` | SUBMIT_REQUEST, REVIEW_REQUEST_APPROVED/REJECTED/REQUEST_REVISION, REVISE_REQUEST |
-| `project` | CHANGE_PROJECT_STATUS |
+| `project` | CHANGE_PROJECT_STATUS, CREATE_PROJECT_DIRECT |
+| `import_export` | EXPORT_DATA, IMPORT_DATA |
+| `budget` (portfolio) | CREATE_BUDGET_YEAR, UPDATE_BUDGET_YEAR, DELETE_BUDGET_YEAR |
 | `milestone` | CREATE_MILESTONE, UPDATE_MILESTONE, CHANGE_MILESTONE_STATUS, REORDER_MILESTONES, DELETE_MILESTONE |
 | `task` | CREATE_TASK, UPDATE_TASK, CHANGE_TASK_STATUS, UPDATE_TASK_PROGRESS, ASSIGN_TASK_USERS, DELETE_TASK |
 | `budget` | CREATE_BUDGET, UPDATE_BUDGET_ALLOCATION, CREATE_TRANSACTION_EXPENSE/REFUND/ADJUSTMENT |

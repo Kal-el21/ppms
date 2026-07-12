@@ -4,10 +4,14 @@ import "time"
 
 type CreateBudgetRequest struct {
 	AllocatedBudget float64 `json:"allocated_budget" validate:"required,gt=0"`
+	BudgetType      string  `json:"budget_type" validate:"omitempty,oneof=CAPEX OPEX"`
+	BudgetName      string  `json:"budget_name" validate:"max=200"`
 }
 
 type UpdateBudgetRequest struct {
 	AllocatedBudget float64 `json:"allocated_budget" validate:"required,gt=0"`
+	BudgetType      string  `json:"budget_type" validate:"omitempty,oneof=CAPEX OPEX"`
+	BudgetName      string  `json:"budget_name" validate:"max=200"`
 	Version         int     `json:"version" validate:"required"`
 }
 
@@ -26,6 +30,8 @@ type CreateTransactionRequest struct {
 type BudgetResponse struct {
 	ID              uint64  `json:"id"`
 	ProjectID       uint64  `json:"project_id"`
+	BudgetType      *string `json:"budget_type,omitempty"`
+	BudgetName      string  `json:"budget_name"`
 	AllocatedBudget float64 `json:"allocated_budget"`
 	UsedBudget      float64 `json:"used_budget"`
 	RemainingBudget float64 `json:"remaining_budget"`

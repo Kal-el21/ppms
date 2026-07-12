@@ -51,6 +51,7 @@ const navGroups: NavGroup[] = [
       { label: "Divisions", path: "/divisions", roles: ["ADMIN", "USER", "VIEWER"], icon: icon("M3 7l4-4h6l4 4h4v13H3z") },
       { label: "Project Requests", path: "/project-requests", roles: ["ADMIN", "USER"], icon: icon("M3 7l4-4h6l4 4h4v13H3z") },
       { label: "Projects", path: "/projects", roles: ["ADMIN", "USER", "VIEWER"], icon: icon("M3 7l4-4h6l4 4h4v13H3z") },
+      { label: "Deadlines", path: "/projects/deadline", roles: ["ADMIN", "USER", "VIEWER"], icon: icon("M12 8v4l3 3M12 2a10 10 0 100 20 10 10 0 000-20z") },
       { label: "Users", path: "/users", roles: ["ADMIN"], icon: icon("M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z") },
     ],
   },
@@ -66,6 +67,8 @@ const navGroups: NavGroup[] = [
     label: "Settings",
     items: [
       { label: "Notification Preferences", path: "/notification-preferences", roles: ["ADMIN", "USER", "VIEWER"], icon: icon("M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0") },
+      { label: "Pagu Tahunan", path: "/settings/budget-years", roles: ["ADMIN"], icon: icon("M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6") },
+      { label: "Import / Export", path: "/settings/import-export", roles: ["ADMIN"], icon: icon("M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3") },
     ],
   },
 ];

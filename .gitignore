@@ -6,3 +6,4 @@ backups/
 docs
 .gocache
 test_output.txt
+.kilo

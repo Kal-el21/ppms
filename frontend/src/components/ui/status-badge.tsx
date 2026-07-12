@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 
-type BadgeColor = "blue" | "red" | "green" | "amber" | "gray";
+type BadgeColor = "blue" | "red" | "green" | "amber" | "gray" | "indigo" | "teal";
 
 interface StatusBadgeProps {
   color: BadgeColor;
@@ -13,6 +13,8 @@ const colorMap: Record<BadgeColor, string> = {
   green: "bg-success-50 text-success-700 dark:bg-success-700/20 dark:text-success-500",
   amber: "bg-warning-50 text-warning-700 dark:bg-warning-700/20 dark:text-warning-500",
   gray: "bg-surface-tertiary text-ink-secondary",
+  indigo: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400",
+  teal: "bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400",
 };
 
 const dotMap: Record<BadgeColor, string> = {
@@ -21,6 +23,8 @@ const dotMap: Record<BadgeColor, string> = {
   green: "bg-success-600",
   amber: "bg-warning-600",
   gray: "bg-ink-tertiary",
+  indigo: "bg-indigo-600",
+  teal: "bg-teal-600",
 };
 
 export function StatusBadge({ color, children }: StatusBadgeProps) {

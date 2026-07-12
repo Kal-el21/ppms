@@ -92,6 +92,10 @@ import (
 	searchhandler "github.com/Kal-el21/backend/internal/domain/search/handler"
 	searchrepo "github.com/Kal-el21/backend/internal/domain/search/repository"
 	searchservice "github.com/Kal-el21/backend/internal/domain/search/service"
+
+	// ── Import / Export ───────────────────────────────────────────────────────
+	importexporthandler "github.com/Kal-el21/backend/internal/domain/import_export/handler"
+	importexportservice "github.com/Kal-el21/backend/internal/domain/import_export/service"
 )
 
 func main() {
@@ -164,7 +168,7 @@ func main() {
 	// Budget
 	budgetRepository := budgetrepo.NewBudgetRepository(db)
 	transactionRepository := budgetrepo.NewTransactionRepository(db)
-
+	portfolioBudgetYearRepository := budgetrepo.NewPortfolioBudgetYearRepository(db)
 	// Attachment
 	attachmentRepository := attachmentrepo.NewAttachmentRepository(db)
 	approvalWorkflowRepository := approvalrepo.NewApprovalWorkflowRepository(db)
@@ -212,7 +216,7 @@ func main() {
 	divisionSvc := divisionservice.NewDivisionService(divisionRepository)
 
 	// Project Request
-	provisioningSvc := projectservice.NewProvisioningService(projectRepository, memberRepository)
+	provisioningSvc := projectservice.NewProvisioningService(db)
 	requestSvc := requestservice.NewRequestService(
 		requestRepository, revisionRepository, approvalRepository, userRepository, provisioningSvc, eventBus,
 	)
@@ -232,6 +236,7 @@ func main() {
 	// Budget
 	budgetSvc := budgetservice.NewBudgetService(budgetRepository, transactionRepository)
 	transactionSvc := budgetservice.NewTransactionService(transactionRepository, budgetRepository, eventBus)
+	portfolioBudgetYearSvc := budgetservice.NewPortfolioBudgetYearService(portfolioBudgetYearRepository)
 
 	// Attachment (Phase 7: now includes ownership resolver & request checker)
 	attachmentSvc := attachmentservice.NewAttachmentService(
@@ -257,6 +262,9 @@ func main() {
 	reportingSvc := reportingservice.NewReportingService(reportingRepository)
 	searchSvc := searchservice.NewSearchService(searchRepository)
 
+	// Import / Export (full backup & restore, ADMIN only)
+	importExportSvc := importexportservice.NewImportExportService(db)
+
 	// =========================================================================
 	// 9. HANDLERS
 	// Write-action handlers receive auditSvc for audit trail.
@@ -268,12 +276,13 @@ func main() {
 	userHdl := userhandler.NewUserHandler(userSvc, cfg, auditSvc, minioClient)
 	divisionHdl := divisionhandler.NewDivisionHandler(divisionSvc, auditSvc)
 	requestHdl := requesthandler.NewRequestHandler(requestSvc, auditSvc)
-	projectHdl := projecthandler.NewProjectHandler(projectSvc, auditSvc)
+	projectHdl := projecthandler.NewProjectHandler(projectSvc, provisioningSvc, auditSvc)
 	memberHdl := projecthandler.NewMemberHandler(memberSvc, auditSvc)
 	milestoneHdl := milestonehandler.NewMilestoneHandler(milestoneSvc, auditSvc)
 	taskHdl := taskhandler.NewTaskHandler(taskSvc, auditSvc)
 	budgetHdl := budgethandler.NewBudgetHandler(budgetSvc, auditSvc)
 	transactionHdl := budgethandler.NewTransactionHandler(transactionSvc, auditSvc)
+	portfolioBudgetYearHdl := budgethandler.NewPortfolioBudgetYearHandler(portfolioBudgetYearSvc, auditSvc)
 	attachmentHdl := attachmenthandler.NewAttachmentHandler(attachmentSvc, auditSvc)
 	approvalHdl := approvalhandler.NewApprovalHandler(approvalWorkflowSvc, approvalLevelSvc)
 	handoverHdl := handoverhandler.NewHandoverHandler(handoverSvc, auditSvc)
@@ -283,6 +292,7 @@ func main() {
 	auditHdl := audithandler.NewAuditHandler(auditSvc)
 	reportingHdl := reportinghandler.NewReportingHandler(reportingSvc)
 	searchHdl := searchhandler.NewSearchHandler(searchSvc)
+	importExportHdl := importexporthandler.NewImportExportHandler(importExportSvc, auditSvc)
 
 	// =========================================================================
 	// 10. EVENT SUBSCRIBERS
@@ -293,6 +303,30 @@ func main() {
 	// imports between domain packages and the events package.
 	// =========================================================================
 	events.RegisterNotificationSubscriber(eventBus, notificationSvc, userRepository, memberRepository, handoverRepository)
+
+	// Recalc health project ketika milestone/task/proyek baru memengaruhi
+	// status, end_date, atau progress (Phase 5). Menggunakan event bus agar
+	// tidak ada circular dependency antara domain.
+	projectSvcLocal := projectSvc
+	recalcHealth := func(e events.Event) {
+		data, ok := e.Data.(map[string]interface{})
+		if !ok {
+			return
+		}
+		rawID, ok := data["project_id"]
+		if !ok {
+			return
+		}
+		projectID, ok := rawID.(uint64)
+		if !ok {
+			return
+		}
+		_ = projectSvcLocal.RecalculateHealth(projectID)
+	}
+	eventBus.Subscribe("project.created", recalcHealth)
+	eventBus.Subscribe("milestone.updated", recalcHealth)
+	eventBus.Subscribe("task.progress_updated", recalcHealth)
+	eventBus.Subscribe("task.completed", recalcHealth)
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
@@ -469,6 +503,7 @@ func main() {
 		projects.Use(middleware.RequireSystemRole("USER"))
 		{
 			projects.GET("", projectHdl.GetList)
+			projects.GET("/deadline", projectHdl.GetDeadlineProjects)
 		}
 
 		// ── Project Detail (requires project membership / ADMIN override) ────
@@ -661,10 +696,36 @@ func main() {
 			approvalWorkflows.POST("/:id/levels", approvalHdl.CreateLevel)
 		}
 
-		protected.POST("/reports/generate",
-			middleware.RequireSystemRole("ADMIN"),
-			reportingHdl.Generate,
-		)
+	// ── Portfolio Budget Years (ADMIN only) ─────────────────────────────
+	budgetYears := protected.Group("/admin/budget-years")
+	budgetYears.Use(middleware.RequireSystemRole("ADMIN"))
+	{
+		budgetYears.GET("", portfolioBudgetYearHdl.GetAll)
+		budgetYears.GET("/:id", portfolioBudgetYearHdl.GetByID)
+		budgetYears.POST("", portfolioBudgetYearHdl.Create)
+		budgetYears.PUT("/:id", portfolioBudgetYearHdl.Update)
+		budgetYears.DELETE("/:id", portfolioBudgetYearHdl.Delete)
+	}
+
+	// ── Admin Direct Create Project (ADMIN only) ──────────────────────
+	adminProjects := protected.Group("/admin/projects")
+	adminProjects.Use(middleware.RequireSystemRole("ADMIN"))
+	{
+		adminProjects.POST("", projectHdl.CreateDirect)
+	}
+
+	// ── Import / Export Full Backup (ADMIN only) ──────────────────────
+	adminData := protected.Group("/admin")
+	adminData.Use(middleware.RequireSystemRole("ADMIN"))
+	{
+		adminData.GET("/export", importExportHdl.Export)
+		adminData.POST("/import", importExportHdl.Import)
+	}
+
+	protected.POST("/reports/generate",
+		middleware.RequireSystemRole("ADMIN"),
+		reportingHdl.Generate,
+	)
 
 		// ── Global Search ─────────────────────────────────────────────────────
 		protected.GET("/search", searchHdl.Search)

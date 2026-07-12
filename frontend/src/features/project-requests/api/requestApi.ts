@@ -10,6 +10,18 @@ import type {
   RevisePayload,
 } from "../types";
 
+function toApiDate(value?: string | null) {
+  return value ? new Date(value).toISOString() : null;
+}
+
+function normalizeRequestPayload<T extends CreateDraftPayload>(payload: T): T {
+  return {
+    ...payload,
+    proposed_start_date: toApiDate(payload.proposed_start_date),
+    proposed_end_date: toApiDate(payload.proposed_end_date),
+  };
+}
+
 export const requestApi = {
   getList: async (page = 1, limit = 20, status?: string) => {
     const res = await axiosInstance.get<PaginatedResponse<ProjectRequest>>("/project-requests", {
@@ -24,12 +36,18 @@ export const requestApi = {
   },
 
   createDraft: async (payload: CreateDraftPayload) => {
-    const res = await axiosInstance.post<ApiResponse<ProjectRequest>>("/project-requests", payload);
+    const res = await axiosInstance.post<ApiResponse<ProjectRequest>>(
+      "/project-requests",
+      normalizeRequestPayload(payload)
+    );
     return res.data.data;
   },
 
   updateDraft: async (id: number, payload: UpdateDraftPayload) => {
-    const res = await axiosInstance.put<ApiResponse<ProjectRequest>>(`/project-requests/${id}`, payload);
+    const res = await axiosInstance.put<ApiResponse<ProjectRequest>>(
+      `/project-requests/${id}`,
+      normalizeRequestPayload(payload)
+    );
     return res.data.data;
   },
 
@@ -44,7 +62,10 @@ export const requestApi = {
   },
 
   revise: async (id: number, payload: RevisePayload) => {
-    const res = await axiosInstance.post<ApiResponse<ProjectRequest>>(`/project-requests/${id}/revise`, payload);
+    const res = await axiosInstance.post<ApiResponse<ProjectRequest>>(
+      `/project-requests/${id}/revise`,
+      normalizeRequestPayload(payload)
+    );
     return res.data.data;
   },
 

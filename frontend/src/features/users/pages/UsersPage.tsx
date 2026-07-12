@@ -1,20 +1,23 @@
 import { useState } from "react";
-import { useUsers, useDeactivateUser, useCreateUser, useUpdateUser, useAssignUserRole, useRestoreUser } from "../hooks/useUsers";
+import { useUsers, useDeactivateUser, useCreateUser, useUpdateUser, useAssignUserRole } from "../hooks/useUsers";
 import { useDivisions } from "../../divisions/hooks/useDivisions";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { Select } from "../../../components/ui/select";
-import { Avatar } from "../../../components/ui/avatar";
-import { StatusBadge } from "../../../components/ui/status-badge";
-import { PageHeader } from "../../../components/shared/PageHeader";
-import { EmptyState } from "../../../components/shared/EmptyState";
-import { Pagination } from "../../../components/ui/pagination";
-import { TableSkeleton } from "../../../components/ui/skeleton";
-import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Avatar } from "@/components/ui/avatar";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { Pagination } from "@/components/ui/pagination";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "../../../components/ui/table";
+} from "@/components/ui/table";
+import { BulkActionsDropdown } from "@/components/shared/BulkActionsDropdown";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
+import { useTableSelection } from "@/components/shared/useTableSelection";
 
 const roleColor: Record<string, "blue" | "amber" | "gray"> = {
   ADMIN: "blue", USER: "amber", VIEWER: "gray",
@@ -31,10 +34,9 @@ interface UserFormData {
 export default function UsersPage() {
   const [page, setPage] = useState(1);
   const limit = 20;
-  const { data, isLoading } = useUsers(page, limit);
+  const { data, isLoading, refetch } = useUsers(page, limit);
   const { data: divisions } = useDivisions();
   const { mutate: deactivate } = useDeactivateUser();
-  const { mutate: restore } = useRestoreUser();
   const { mutate: assignRole } = useAssignUserRole();
   const { mutate: updateUser } = useUpdateUser();
   const { mutate: createUser, isPending: creating } = useCreateUser();
@@ -45,7 +47,21 @@ export default function UsersPage() {
     full_name: "", email: "", password: "", system_role: "USER", division_id: "",
   });
 
+  const [deletingIds, setDeletingIds] = useState<number[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   const divisionMap = Object.fromEntries((divisions || []).map((d) => [String(d.id), d.name]));
+
+  const rows = data?.data ?? [];
+  const {
+    selectedIds,
+    toggle,
+    toggleAll,
+    clear,
+    selectedCount,
+    isAllSelected,
+    isIndeterminate,
+  } = useTableSelection<number>();
 
   const openCreateForm = () => {
     setEditingUserId(null);
@@ -92,12 +108,31 @@ export default function UsersPage() {
     );
   };
 
-  const handleChangeRole = (id: number, role: string) => {
-    assignRole({ id, systemRole: role });
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setDeletingIds(ids);
+    setDeleteDialogOpen(true);
   };
 
-  const handleRestore = (id: number) => {
-    restore(id);
+  const confirmDelete = async () => {
+    if (deletingIds.length === 0) return;
+    for (const id of deletingIds) {
+      await deactivate(id);
+    }
+    setDeletingIds([]);
+    setDeleteDialogOpen(false);
+    clear();
+    refetch();
+  };
+
+  const handleEdit = () => {
+    if (selectedCount !== 1) return;
+    const id = Array.from(selectedIds)[0];
+    const user = rows.find((u) => u.id === id);
+    if (user) {
+      openEditForm(user);
+    }
   };
 
   return (
@@ -180,6 +215,17 @@ export default function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead style={{ width: 40 }}>
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected(rows.map((u) => u.id))}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isIndeterminate(rows.map((u) => u.id));
+                    }}
+                    onChange={(e) => toggleAll(rows.map((u) => u.id), e.target.checked)}
+                  />
+                </TableHead>
+                <TableHead style={{ width: 50 }}>No</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
@@ -189,8 +235,16 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.data.map((u) => (
+              {rows.map((u, index) => (
                 <TableRow key={u.id}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(u.id)}
+                      onChange={() => toggle(u.id)}
+                    />
+                  </TableCell>
+                  <TableCell className="text-ink-secondary text-[13px]">{(page - 1) * limit + index + 1}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <Avatar name={u.full_name} size="sm" />
@@ -198,16 +252,17 @@ export default function UsersPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-ink-secondary">{u.email}</TableCell>
-                  <TableCell><StatusBadge color={roleColor[u.system_role] || "gray"}>{u.system_role}</StatusBadge></TableCell>
+                  <TableCell>
+                    <StatusBadge color={roleColor[u.system_role] || "gray"}>{u.system_role}</StatusBadge>
+                  </TableCell>
                   <TableCell className="text-ink-secondary">{u.division_id ? (divisionMap[String(u.division_id)] || `Div #${u.division_id}`) : "—"}</TableCell>
-                  <TableCell><StatusBadge color={u.is_active ? "green" : "red"}>{u.is_active ? "Active" : "Inactive"}</StatusBadge></TableCell>
+                  <TableCell>
+                    <StatusBadge color={u.is_active ? "green" : "red"}>{u.is_active ? "Active" : "Inactive"}</StatusBadge>
+                  </TableCell>
                   <TableCell className="flex flex-wrap gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => openEditForm(u)}>
-                      Edit
-                    </Button>
                     <Select
                       value={u.system_role}
-                      onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                      onChange={(e) => assignRole({ id: u.id, systemRole: e.target.value })}
                       className="w-32"
                       options={[
                         { value: "ADMIN", label: "Admin" },
@@ -215,23 +270,37 @@ export default function UsersPage() {
                         { value: "VIEWER", label: "Viewer" },
                       ]}
                     />
-                    {u.is_active ? (
-                      <Button variant="ghost" size="sm" onClick={() => deactivate(u.id)}>
-                        Nonaktifkan
-                      </Button>
-                    ) : (
-                      <Button variant="ghost" size="sm" onClick={() => handleRestore(u.id)}>
-                        Aktifkan
-                      </Button>
-                    )}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          <div className="mt-4">
+            <BulkActionsDropdown
+              selectedCount={selectedCount}
+              onEdit={handleEdit}
+              onDelete={handleBulkDelete}
+            />
+          </div>
           <Pagination page={page} total={data.meta.total} limit={limit} onPageChange={setPage} />
         </>
       )}
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        title={`Nonaktifkan ${deletingIds.length} user`}
+        description={
+          deletingIds.length === 1
+            ? "User yang dinonaktifkan tidak akan bisa login kembali."
+            : `${deletingIds.length} user yang dipilih akan dinonaktifkan dan tidak bisa login kembali.`
+        }
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setDeletingIds([]);
+        }}
+        isDeleting={deletingIds.length > 0}
+      />
     </div>
   );
 }

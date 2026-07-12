@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useBudget, useCreateBudget, useTransactions, useCreateTransaction } from "../hooks/useBudget";
+import { useBudget, useCreateBudget, useTransactions, useCreateTransaction, useUpdateBudget } from "../hooks/useBudget";
 import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
+import { Select } from "@/components/ui/select";
 import { StatusBadge } from "../../../components/ui/status-badge";
 import { EmptyState } from "../../../components/shared/EmptyState";
 
@@ -10,13 +11,22 @@ interface BudgetSectionProps {
   projectId: number;
 }
 
+const formatCurrency = (value: number) =>
+  `Rp ${Math.round(value || 0).toLocaleString("id-ID")}`;
+
 export default function BudgetSection({ projectId }: BudgetSectionProps) {
   const { data: budget, isError } = useBudget(projectId);
   const { mutate: createBudget } = useCreateBudget(projectId);
+  const { mutate: updateBudget } = useUpdateBudget(projectId, budget?.id ?? 0);
   const { data: transactions } = useTransactions(projectId, budget?.id ?? 0);
   const { mutate: createTransaction } = useCreateTransaction(projectId, budget?.id ?? 0);
 
   const [allocatedInput, setAllocatedInput] = useState("");
+  const [budgetType, setBudgetType] = useState("CAPEX");
+  const [budgetName, setBudgetName] = useState("");
+  const [editType, setEditType] = useState("CAPEX");
+  const [editName, setEditName] = useState("");
+
   const [txType, setTxType] = useState("EXPENSE");
   const [txAmount, setTxAmount] = useState("");
   const [txReason, setTxReason] = useState("");
@@ -39,14 +49,36 @@ export default function BudgetSection({ projectId }: BudgetSectionProps) {
             title="Belum ada budget"
             description="Tetapkan alokasi anggaran untuk mulai melacak pengeluaran project ini."
             action={
-              <div className="flex gap-2 w-full max-w-xs">
+              <div className="flex flex-col gap-2 w-full max-w-xs">
+                <Select
+                  value={budgetType}
+                  onChange={(e) => setBudgetType(e.target.value)}
+                  options={[
+                    { value: "CAPEX", label: "CAPEX" },
+                    { value: "OPEX", label: "OPEX" },
+                  ]}
+                />
+                <Input
+                  placeholder="Nama budget (cth. Server Infrastruktur)"
+                  value={budgetName}
+                  onChange={(e) => setBudgetName(e.target.value)}
+                />
                 <Input
                   type="number"
                   placeholder="Alokasi (Rp)"
                   value={allocatedInput}
                   onChange={(e) => setAllocatedInput(e.target.value)}
                 />
-                <Button variant="primary" onClick={() => createBudget(Number(allocatedInput))}>
+                <Button
+                  variant="primary"
+                  onClick={() =>
+                    createBudget({
+                      allocated_budget: Number(allocatedInput),
+                      budget_type: budgetType as any,
+                      budget_name: budgetName,
+                    })
+                  }
+                >
                   Set
                 </Button>
               </div>
@@ -69,27 +101,43 @@ export default function BudgetSection({ projectId }: BudgetSectionProps) {
     setTxReason("");
   };
 
+  const saveBudgetMeta = () => {
+    updateBudget({
+      allocated_budget: budget.allocated_budget,
+      budget_type: editType as any,
+      budget_name: editName,
+      version: budget.version,
+    });
+  };
+
   const usageColor =
     budget.usage_percentage >= 100 ? "#DC2626" : budget.usage_percentage >= 80 ? "#D97706" : "#2563EB";
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Budget</CardTitle>
+        <CardTitle>
+          Budget
+          {budget.budget_type && (
+            <StatusBadge color={budget.budget_type === "CAPEX" ? "indigo" : "teal"}>
+              {budget.budget_type}
+            </StatusBadge>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-4 text-sm mb-4">
           <div>
             <p className="text-[11.5px] text-ink-tertiary mb-1">Allocated</p>
-            <p className="text-[15px] font-semibold m-0">Rp {budget.allocated_budget.toLocaleString("id-ID")}</p>
+            <p className="text-[15px] font-semibold m-0">{formatCurrency(budget.allocated_budget)}</p>
           </div>
           <div>
             <p className="text-[11.5px] text-ink-tertiary mb-1">Used</p>
-            <p className="text-[15px] font-semibold m-0">Rp {budget.used_budget.toLocaleString("id-ID")}</p>
+            <p className="text-[15px] font-semibold m-0">{formatCurrency(budget.used_budget)}</p>
           </div>
           <div>
             <p className="text-[11.5px] text-ink-tertiary mb-1">Remaining</p>
-            <p className="text-[15px] font-semibold m-0">Rp {budget.remaining_budget.toLocaleString("id-ID")}</p>
+            <p className="text-[15px] font-semibold m-0">{formatCurrency(budget.remaining_budget)}</p>
           </div>
         </div>
 
@@ -99,7 +147,43 @@ export default function BudgetSection({ projectId }: BudgetSectionProps) {
             style={{ width: `${Math.min(budget.usage_percentage, 100)}%`, background: usageColor }}
           />
         </div>
-        <p className="text-xs text-ink-tertiary mb-6">{budget.usage_percentage.toFixed(1)}% digunakan</p>
+        <p className="text-xs text-ink-tertiary mb-2">{budget.usage_percentage.toFixed(1)}% digunakan</p>
+
+        {budget.budget_name && (
+          <p className="text-[12.5px] text-ink-secondary mb-4">Nama budget: {budget.budget_name}</p>
+        )}
+
+        <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4 mb-4">
+          <div className="flex-1 min-w-[140px]">
+            <p className="text-[11.5px] text-ink-tertiary mb-1">Tipe</p>
+            <Select
+              value={editType}
+              onChange={(e) => setEditType(e.target.value)}
+              options={[
+                { value: "CAPEX", label: "CAPEX" },
+                { value: "OPEX", label: "OPEX" },
+              ]}
+            />
+          </div>
+          <div className="flex-1 min-w-[180px]">
+            <p className="text-[11.5px] text-ink-tertiary mb-1">Nama budget</p>
+            <Input
+              placeholder={budget.budget_name || "Nama budget"}
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (!editName) setEditName(budget.budget_name);
+              saveBudgetMeta();
+            }}
+          >
+            Simpan
+          </Button>
+        </div>
 
         <div className="space-y-2.5 border-t border-border pt-5 mb-6">
           <p className="text-[13px] font-semibold mb-2">Tambah transaksi</p>

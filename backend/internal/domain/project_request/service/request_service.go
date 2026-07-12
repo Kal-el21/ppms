@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	projectservice "github.com/Kal-el21/backend/internal/domain/project/service"
@@ -58,6 +59,114 @@ func NewRequestService(
 	}
 }
 
+var (
+	allowedInitiationTypes = map[string]struct{}{
+		string(entity.InitiationNewInitiative): {},
+		string(entity.InitiationRenewal):       {},
+		string(entity.InitiationEnhancement):   {},
+	}
+	allowedPriorities = map[string]struct{}{
+		string(entity.PriorityLow):    {},
+		string(entity.PriorityMedium): {},
+		string(entity.PriorityHigh):   {},
+		string(entity.PriorityUrgent): {},
+	}
+	allowedBudgetTypes = map[string]struct{}{
+		string(entity.BudgetTypeCapex): {},
+		string(entity.BudgetTypeOpex):  {},
+	}
+)
+
+func cleanEnum(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.ToUpper(value)
+	value = strings.NewReplacer(" ", "_", "-", "_").Replace(value)
+	return value
+}
+
+func normalizeOptionalEnum(value string, allowed map[string]struct{}, fieldName string) (string, error) {
+	normalized := cleanEnum(value)
+	if normalized == "" {
+		return "", nil
+	}
+	if _, ok := allowed[normalized]; !ok {
+		return "", apperrors.New(apperrors.ErrValidation, fieldName+" is invalid")
+	}
+	return normalized, nil
+}
+
+func normalizeEnumWithDefault(value string, allowed map[string]struct{}, defaultValue string, fieldName string) (string, error) {
+	normalized := cleanEnum(value)
+	if normalized == "" {
+		normalized = defaultValue
+	}
+	if _, ok := allowed[normalized]; !ok {
+		return "", apperrors.New(apperrors.ErrValidation, fieldName+" is invalid")
+	}
+	return normalized, nil
+}
+
+func trimString(value string, maxLength int, fieldName string) (string, error) {
+	value = strings.TrimSpace(value)
+	if maxLength > 0 && len(value) > maxLength {
+		return "", apperrors.New(apperrors.ErrValidation, fieldName+" is too long")
+	}
+	return value, nil
+}
+
+func applyRequestMetadata(request *entity.ProjectRequest, metadata dto.ProjectRequestMetadata) error {
+	category, err := trimString(metadata.Category, 100, "category")
+	if err != nil {
+		return err
+	}
+	budgetName, err := trimString(metadata.BudgetName, 200, "budget_name")
+	if err != nil {
+		return err
+	}
+	notes, err := trimString(metadata.Notes, 2000, "notes")
+	if err != nil {
+		return err
+	}
+	initiationType, err := normalizeOptionalEnum(metadata.InitiationType, allowedInitiationTypes, "initiation_type")
+	if err != nil {
+		return err
+	}
+	priority, err := normalizeEnumWithDefault(metadata.Priority, allowedPriorities, string(entity.PriorityMedium), "priority")
+	if err != nil {
+		return err
+	}
+	budgetType, err := normalizeOptionalEnum(metadata.BudgetType, allowedBudgetTypes, "budget_type")
+	if err != nil {
+		return err
+	}
+
+	if metadata.ProposedStartDate != nil && metadata.ProposedEndDate != nil &&
+		metadata.ProposedEndDate.Before(*metadata.ProposedStartDate) {
+		return apperrors.New(apperrors.ErrValidation, "proposed_end_date cannot be before proposed_start_date")
+	}
+
+	request.Category = category
+	if initiationType == "" {
+		request.InitiationType = nil
+	} else {
+		value := entity.InitiationType(initiationType)
+		request.InitiationType = &value
+	}
+	request.Priority = entity.RequestPriority(priority)
+	request.ProposedStartDate = metadata.ProposedStartDate
+	request.ProposedEndDate = metadata.ProposedEndDate
+	if budgetType == "" {
+		request.BudgetType = nil
+	} else {
+		value := entity.BudgetType(budgetType)
+		request.BudgetType = &value
+	}
+	request.BudgetName = budgetName
+	request.Notes = notes
+
+	return nil
+}
+
 func (s *requestService) CreateDraft(requesterID uint64, req dto.CreateDraftRequest) (*entity.ProjectRequest, error) {
 	request := &entity.ProjectRequest{
 		RequesterID:     requesterID,
@@ -67,6 +176,10 @@ func (s *requestService) CreateDraft(requesterID uint64, req dto.CreateDraftRequ
 		ExpectedOutcome: req.ExpectedOutcome,
 		EstimatedBudget: req.EstimatedBudget,
 		Status:          entity.StatusDraft,
+	}
+
+	if err := applyRequestMetadata(request, req.ProjectRequestMetadata); err != nil {
+		return nil, err
 	}
 
 	if err := s.requestRepo.Create(request); err != nil {
@@ -108,6 +221,10 @@ func (s *requestService) UpdateDraft(id uint64, requesterID uint64, req dto.Upda
 	request.BusinessGoal = req.BusinessGoal
 	request.ExpectedOutcome = req.ExpectedOutcome
 	request.EstimatedBudget = req.EstimatedBudget
+
+	if err := applyRequestMetadata(request, req.ProjectRequestMetadata); err != nil {
+		return nil, err
+	}
 
 	rows, err := s.requestRepo.UpdateWithVersionCheck(request, req.Version)
 	if err != nil {
@@ -252,11 +369,15 @@ func (s *requestService) Review(id uint64, reviewerID uint64, req dto.ReviewRequ
 
 	// FR-05.01: Auto-create project saat request APPROVED
 	if newStatus == entity.StatusApproved {
-		if _, err := s.provisioningSvc.CreateFromApprovedRequest(
-			updated.ID, updated.Title, updated.Description, updated.RequesterID, *selectedProjectManagerID,
-		); err != nil {
+		createdProject, err := s.provisioningSvc.CreateFromApprovedRequest(updated, *selectedProjectManagerID)
+		if err != nil {
 			return nil, err
 		}
+		// Picu perhitungan health awal project yang baru dibuat.
+		s.eventBus.Publish(events.Event{
+			Name: "project.created",
+			Data: map[string]interface{}{"project_id": createdProject.ID},
+		})
 	}
 
 	eventData := map[string]interface{}{
@@ -328,15 +449,23 @@ func (s *requestService) Revise(id uint64, requesterID uint64, req dto.ReviseReq
 	}
 
 	revision := &entity.ProjectRequestRevision{
-		ProjectRequestID: id,
-		RevisionNumber:   int(revisionCount) + 1,
-		Title:            request.Title,
-		Description:      request.Description,
-		BusinessGoal:     request.BusinessGoal,
-		ExpectedOutcome:  request.ExpectedOutcome,
-		EstimatedBudget:  request.EstimatedBudget,
-		RevisionReason:   req.RevisionReason,
-		RevisedBy:        requesterID,
+		ProjectRequestID:  id,
+		RevisionNumber:    int(revisionCount) + 1,
+		Title:             request.Title,
+		Description:       request.Description,
+		BusinessGoal:      request.BusinessGoal,
+		ExpectedOutcome:   request.ExpectedOutcome,
+		EstimatedBudget:   request.EstimatedBudget,
+		Category:          request.Category,
+		InitiationType:    request.InitiationType,
+		Priority:          request.Priority,
+		ProposedStartDate: request.ProposedStartDate,
+		ProposedEndDate:   request.ProposedEndDate,
+		BudgetType:        request.BudgetType,
+		BudgetName:        request.BudgetName,
+		Notes:             request.Notes,
+		RevisionReason:    req.RevisionReason,
+		RevisedBy:         requesterID,
 	}
 
 	if err := s.revisionRepo.Create(revision); err != nil {
@@ -349,6 +478,11 @@ func (s *requestService) Revise(id uint64, requesterID uint64, req dto.ReviseReq
 	request.BusinessGoal = req.BusinessGoal
 	request.ExpectedOutcome = req.ExpectedOutcome
 	request.EstimatedBudget = req.EstimatedBudget
+
+	if err := applyRequestMetadata(request, req.ProjectRequestMetadata); err != nil {
+		return nil, err
+	}
+
 	request.CurrentRevision = request.CurrentRevision + 1
 	request.Status = entity.StatusRevised
 

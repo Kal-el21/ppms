@@ -34,13 +34,13 @@ func (h *BudgetHandler) Create(c *gin.Context) {
 		return
 	}
 
-	budget, err := h.service.Create(projectID, req)
+	actorID := c.GetUint64("user_id")
+	budget, err := h.service.Create(projectID, actorID, req)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
-	actorID := c.GetUint64("user_id")
 	h.auditSvc.Log(auditservice.LogParams{
 		UserID:     &actorID,
 		Module:     "budget",
@@ -95,7 +95,7 @@ func (h *BudgetHandler) Update(c *gin.Context) {
 		Action:     "UPDATE_BUDGET_ALLOCATION",
 		EntityType: "BUDGET",
 		EntityID:   &budgetID,
-		NewData:    map[string]float64{"allocated_budget": req.AllocatedBudget},
+		NewData:    budget,
 	})
 
 	response.Success(c, http.StatusOK, budget, "budget updated successfully")
