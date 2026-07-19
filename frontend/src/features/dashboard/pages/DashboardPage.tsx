@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui
 import { MetricCard } from "../../../components/ui/metric-card";
 import { PageHeader } from "../../../components/shared/PageHeader";
 import { Button } from "../../../components/ui/button";
+import { FolderKanban } from "lucide-react";
 import { StatusBadge, getStatusColor } from "../../../components/ui/status-badge";
 import { DoughnutChart, BarChart, GroupedBarChart } from "../../../components/ui/charts";
 import { MetricsSkeleton } from "@/components/ui/skeleton";
@@ -43,51 +44,51 @@ export default function DashboardPage() {
   const overdueTasks = data?.overdue_tasks ?? 0;
 
   const statusData = [
-    { label: "Planned", value: data?.by_status?.PLANNED ?? 0, color: "#94A3B8" },
-    { label: "Active", value: data?.by_status?.ACTIVE ?? 0, color: "#2563EB" },
-    { label: "On Hold", value: data?.by_status?.ON_HOLD ?? 0, color: "#D97706" },
-    { label: "Completed", value: data?.by_status?.COMPLETED ?? 0, color: "#059669" },
-    { label: "Cancelled", value: data?.by_status?.CANCELLED ?? 0, color: "#DC2626" },
+    { label: "Planned", value: data?.by_status?.PLANNED ?? 0, color: "var(--ink-tertiary)" },
+    { label: "Active", value: data?.by_status?.ACTIVE ?? 0, color: "var(--primary-600)" },
+    { label: "On Hold", value: data?.by_status?.ON_HOLD ?? 0, color: "var(--warning-600)" },
+    { label: "Completed", value: data?.by_status?.COMPLETED ?? 0, color: "var(--color-chart-4)" },
+    { label: "Cancelled", value: data?.by_status?.CANCELLED ?? 0, color: "var(--danger-600)" },
   ].filter((d) => d.value > 0);
 
   const initiationData = [
-    { label: "New", value: data?.by_initiation?.NEW_INITIATIVE ?? 0, color: "#2563EB" },
-    { label: "Renewal", value: data?.by_initiation?.RENEWAL ?? 0, color: "#7C3AED" },
-    { label: "Enhancement", value: data?.by_initiation?.ENHANCEMENT ?? 0, color: "#0891B2" },
+    { label: "New", value: data?.by_initiation?.NEW_INITIATIVE ?? 0, color: "var(--primary-600)" },
+    { label: "Renewal", value: data?.by_initiation?.RENEWAL ?? 0, color: "var(--color-chart-2)" },
+    { label: "Enhancement", value: data?.by_initiation?.ENHANCEMENT ?? 0, color: "var(--color-chart-3)" },
   ].filter((d) => d.value > 0);
 
   const priorityData = [
-    { label: "Low", value: data?.by_priority?.LOW ?? 0, color: "#94A3B8" },
-    { label: "Medium", value: data?.by_priority?.MEDIUM ?? 0, color: "#2563EB" },
-    { label: "High", value: data?.by_priority?.HIGH ?? 0, color: "#D97706" },
-    { label: "Urgent", value: data?.by_priority?.URGENT ?? 0, color: "#DC2626" },
+    { label: "Low", value: data?.by_priority?.LOW ?? 0, color: "var(--ink-tertiary)" },
+    { label: "Medium", value: data?.by_priority?.MEDIUM ?? 0, color: "var(--primary-600)" },
+    { label: "High", value: data?.by_priority?.HIGH ?? 0, color: "var(--warning-600)" },
+    { label: "Urgent", value: data?.by_priority?.URGENT ?? 0, color: "var(--danger-600)" },
   ];
 
   const healthData = [
-    { label: "Green", value: data?.health_green ?? 0, color: "#059669" },
-    { label: "Yellow", value: data?.health_yellow ?? 0, color: "#D97706" },
-    { label: "Red", value: data?.health_red ?? 0, color: "#DC2626" },
+    { label: "Green", value: data?.health_green ?? 0, color: "var(--color-chart-4)" },
+    { label: "Yellow", value: data?.health_yellow ?? 0, color: "var(--warning-600)" },
+    { label: "Red", value: data?.health_red ?? 0, color: "var(--danger-600)" },
   ].filter((d) => d.value > 0);
 
   const budgetData = [
-    { label: "CAPEX", value: Math.round(data?.capex_allocated ?? 0), color: "#2563EB" },
-    { label: "CAPEX Used", value: Math.round(data?.capex_used ?? 0), color: "#1E40AF" },
-    { label: "OPEX", value: Math.round(data?.opex_allocated ?? 0), color: "#7C3AED" },
-    { label: "OPEX Used", value: Math.round(data?.opex_used ?? 0), color: "#5B21B6" },
+    { label: "CAPEX", value: Math.round(data?.capex_allocated ?? 0), color: "var(--primary-600)" },
+    { label: "CAPEX Used", value: Math.round(data?.capex_used ?? 0), color: "var(--primary-800)" },
+    { label: "OPEX", value: Math.round(data?.opex_allocated ?? 0), color: "var(--color-chart-2)" },
+    { label: "OPEX Used", value: Math.round(data?.opex_used ?? 0), color: "var(--color-chart-2)" },
   ];
 
   const budgetMasterData = (data?.budget_master ?? []).map((item) => ({
     label: item.budget_name,
     value: Math.round(item.allocated),
-    color: item.budget_type === "CAPEX" ? "#2563EB" : "#7C3AED",
+    color: item.budget_type === "CAPEX" ? "var(--primary-600)" : "var(--color-chart-2)",
     value2: Math.round(item.used),
-    color2: item.budget_type === "CAPEX" ? "#1E40AF" : "#5B21B6",
+    color2: item.budget_type === "CAPEX" ? "var(--primary-800)" : "#5B21B6",
   }));
 
   const absorptionData = (data?.absorption ?? []).map((item) => ({
     label: item.project_code,
     value: Math.round(item.usage_percentage),
-    color: item.budget_type === "CAPEX" ? "#2563EB" : "#7C3AED",
+    color: item.budget_type === "CAPEX" ? "var(--primary-600)" : "var(--color-chart-2)",
   }));
 
   const deadlineList = deadlines ?? data?.upcoming_deadlines ?? [];
@@ -106,7 +107,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3.5 mb-7">
         <MetricCard label="Total Projects" value={totalProjects} iconColor="blue"
-          icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7l4-4h6l4 4h4v13H3z"/></svg>}
+          icon={<FolderKanban className="h-3.5 w-3.5" />}
         />
         <MetricCard label="Active" value={activeProjects} iconColor="green"
           icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>}

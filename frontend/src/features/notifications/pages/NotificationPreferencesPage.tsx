@@ -1,6 +1,8 @@
 import { useNotificationPreferences, useUpdatePreference } from "../hooks/useNotifications";
 import { Card, CardContent } from "../../../components/ui/card";
 import { PageHeader } from "../../../components/shared/PageHeader";
+import { EmptyState } from "../../../components/shared/EmptyState";
+import { CardSkeleton } from "../../../components/ui/skeleton";
 
 const typeMeta: Record<string, { label: string; desc: string; group: string }> = {
   REQUEST_SUBMITTED: { label: "Request Disubmit", desc: "Saat ada request baru menunggu review Anda", group: "Project Request" },
@@ -39,11 +41,26 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
+const emptyIcon = (
+  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+  </svg>
+);
+
 export default function NotificationPreferencesPage() {
   const { data: preferences, isLoading } = useNotificationPreferences();
   const { mutate: updatePref } = useUpdatePreference();
 
-  if (isLoading) return <div className="text-ink-secondary text-sm">Memuat preferensi...</div>;
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl space-y-4">
+        <PageHeader title="Notification Preferences" subtitle="Atur jenis notifikasi yang ingin Anda terima" />
+        {[0, 1, 2].map((i) => (
+          <CardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
 
   const grouped = (preferences || []).reduce<Record<string, typeof preferences>>((acc, p) => {
     const group = typeMeta[p.type]?.group || "Lainnya";
@@ -57,7 +74,14 @@ export default function NotificationPreferencesPage() {
       <PageHeader title="Notification Preferences" subtitle="Atur jenis notifikasi yang ingin Anda terima" />
 
       <div className="space-y-4">
-        {Object.entries(grouped).map(([group, items]) => (
+        {Object.keys(grouped).length === 0 ? (
+          <Card>
+            <CardContent className="pt-5">
+              <EmptyState icon={emptyIcon} title="Belum ada preferensi notifikasi" />
+            </CardContent>
+          </Card>
+        ) : (
+          Object.entries(grouped).map(([group, items]) => (
           <Card key={group}>
             <CardContent className="pt-5">
               <p className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-tertiary mb-3">{group}</p>
@@ -77,7 +101,8 @@ export default function NotificationPreferencesPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

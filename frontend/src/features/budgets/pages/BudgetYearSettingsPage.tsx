@@ -14,6 +14,8 @@ import {
 } from "../../../components/ui/table";
 import { BulkActionsDropdown } from "@/components/shared/BulkActionsDropdown";
 import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { useTableSelection } from "@/components/shared/useTableSelection";
 
 const formatCurrency = (value: number) =>
@@ -156,7 +158,12 @@ export default function BudgetYearSettingsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="h-24 bg-surface-tertiary rounded-md animate-pulse" />
+            <TableSkeleton rows={4} cols={5} />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={<svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3v18h18M7 15l4-4 3 3 5-6" /></svg>}
+              title="Belum ada pagu tahunan"
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -219,13 +226,6 @@ export default function BudgetYearSettingsPage() {
                     )}
                   </TableRow>
                 ))}
-                {rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-[13px] text-ink-tertiary">
-                      Belum ada pagu tahunan.
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           )}

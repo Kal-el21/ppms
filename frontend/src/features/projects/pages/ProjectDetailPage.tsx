@@ -56,6 +56,15 @@ const icon = (d: string, size = 22) => (
   </svg>
 );
 
+function getPriorityColor(priority: string): string {
+  const map: Record<string, string> = {
+    URGENT: "var(--danger-600)",
+    HIGH: "var(--warning-600)",
+    MEDIUM: "var(--primary-600)",
+    LOW: "var(--text-tertiary)",
+  };
+  return map[priority] || "var(--text-tertiary)";
+}
 const getHealthColor = (health: string) => {
   switch (health) {
     case "GREEN":
@@ -732,16 +741,7 @@ export default function ProjectDetailPage() {
                             <div className="flex items-center gap-3">
                               <span
                                 className="h-2 w-2 rounded-sm flex-shrink-0"
-                                style={{
-                                  background:
-                                    t.priority === "URGENT"
-                                      ? "#DC2626"
-                                      : t.priority === "HIGH"
-                                      ? "#D97706"
-                                      : t.priority === "MEDIUM"
-                                      ? "#2563EB"
-                                      : "#94A3B8",
-                                }}
+                                style={{ background: getPriorityColor(t.priority) }}
                               />
                               <div className="flex-1 min-w-0">
                                 <p className="text-[13px] font-medium m-0 truncate">{t.title}</p>

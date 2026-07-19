@@ -5,6 +5,15 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { StatusBadge, getStatusColor } from "../../../components/ui/status-badge";
+import { EmptyState } from "../../../components/shared/EmptyState";
+import { CardSkeleton } from "../../../components/ui/skeleton";
+
+const notFoundIcon = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+  </svg>
+);
 
 export default function TaskDetailPage() {
   const { projectId, taskId } = useParams();
@@ -25,8 +34,16 @@ export default function TaskDetailPage() {
   const [assigneeInput, setAssigneeInput] = useState("");
   const [newComment, setNewComment] = useState("");
 
-  if (isLoading) return <div>Loading...</div>;
-  if (!task) return <div>Task not found</div>;
+  if (isLoading) return <CardSkeleton />;
+  if (!task) {
+    return (
+      <EmptyState
+        icon={notFoundIcon}
+        title="Task tidak ditemukan"
+        description="Task yang Anda cari mungkin telah dihapus atau tidak tersedia."
+      />
+    );
+  }
 
   const handleSave = () => {
     updateTask({ taskId: tId, payload: { title, description, version: task.version } });
@@ -53,18 +70,29 @@ export default function TaskDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Task #{task.id} — {task.title}</h1>
+      <div className="flex items-start justify-between">
+        <h1 className="text-[20px] font-semibold tracking-tight m-0">Task #{task.id} — {task.title}</h1>
       </div>
 
       <Card>
         <CardHeader><CardTitle>Details</CardTitle></CardHeader>
         <CardContent>
           {!editMode ? (
-            <div>
-              <p><strong>Description:</strong> {task.description}</p>
-              <p><strong>Priority:</strong> {task.priority}</p>
-              <p><strong>Assignees:</strong> {task.assignee_ids.length ? task.assignee_ids.join(", ") : "-"}</p>
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge color={getStatusColor(task.status)}>{task.status}</StatusBadge>
+                <StatusBadge color={getStatusColor(task.priority)}>{task.priority}</StatusBadge>
+              </div>
+              <div>
+                <p className="text-[12.5px] text-ink-tertiary mb-1">Description</p>
+                <p className="text-[13.5px] text-ink-primary m-0">{task.description}</p>
+              </div>
+              <div>
+                <p className="text-[12.5px] text-ink-tertiary mb-1">Assignees</p>
+                <p className="text-[13.5px] text-ink-primary m-0">
+                  {task.assignee_ids.length ? task.assignee_ids.join(", ") : "-"}
+                </p>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -105,9 +133,11 @@ export default function TaskDetailPage() {
         <CardContent>
           <div className="space-y-3">
             {(comments?.data || []).map((c: any) => (
-              <div key={c.id} className="border-b pb-2">
-                <p className="text-sm"><strong>{c.user.full_name}</strong> — {new Date(c.created_at).toLocaleString()}</p>
-                <p className="text-sm text-ink-secondary">{c.comment}</p>
+              <div key={c.id} className="border-b border-border pb-2">
+                <p className="text-[12.5px] text-ink-primary m-0">
+                  <strong>{c.user.full_name}</strong> — {new Date(c.created_at).toLocaleString()}
+                </p>
+                <p className="text-[13px] text-ink-secondary m-0 mt-0.5">{c.comment}</p>
               </div>
             ))}
 

@@ -17,6 +17,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableDensityToggle,
+  type TableDensity,
 } from "../../../components/ui/table";
 import { BulkActionsDropdown } from "@/components/shared/BulkActionsDropdown";
 import { useTableSelection } from "@/components/shared/useTableSelection";
@@ -117,6 +119,7 @@ function ProjectListContent() {
 
   const { data, isLoading } = useProjectList(filters);
   const deleteProject = useDeleteProject();
+  const [density, setDensity] = useState<TableDensity>("comfortable");
 
   const list = data?.data ?? [];
   const {
@@ -141,6 +144,7 @@ function ProjectListContent() {
         subtitle={`${data?.meta.total ?? 0} project terdaftar`}
         actions={
           <div className="flex gap-2">
+            <TableDensityToggle value={density} onChange={setDensity} />
             <BulkActionsDropdown
               selectedCount={selectedCount}
               onDelete={handleBulkDelete}
@@ -220,7 +224,7 @@ function ProjectListContent() {
         />
       </div>
 
-      <Table>
+      <Table density={density}>
         <TableHeader>
           <TableRow>
             <TableHead style={{ width: 40 }}>

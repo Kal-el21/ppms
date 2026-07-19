@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -49,7 +50,7 @@ export default function DivisionsPage() {
     isIndeterminate,
   } = useTableSelection<number>();
 
-  if (isLoading) return <div className="text-ink-secondary text-sm">Memuat divisions...</div>;
+  if (isLoading) return <TableSkeleton rows={6} cols={4} />;
 
   const divisions = data ?? [];
 
@@ -147,84 +148,80 @@ export default function DivisionsPage() {
           title="Belum ada divisi"
         />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {isAdmin && (
-                    <TableHead style={{ width: 40 }}>
-                      <input
-                        type="checkbox"
-                        checked={isAllSelected(divisions.map((d) => d.id))}
-                        ref={(el) => {
-                          if (el) el.indeterminate = isIndeterminate(divisions.map((d) => d.id));
-                        }}
-                        onChange={(e) => toggleAll(divisions.map((d) => d.id), e.target.checked)}
-                      />
-                    </TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {isAdmin && (
+                <TableHead style={{ width: 40 }}>
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected(divisions.map((d) => d.id))}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isIndeterminate(divisions.map((d) => d.id));
+                    }}
+                    onChange={(e) => toggleAll(divisions.map((d) => d.id), e.target.checked)}
+                  />
+                </TableHead>
+              )}
+              <TableHead style={{ width: 50 }}>No</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Description</TableHead>
+              {isAdmin && editingId !== null && <TableHead style={{ width: 100 }}>Aksi</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {divisions.map((division, index) => (
+              <TableRow key={division.id}>
+                {isAdmin && (
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(division.id)}
+                      onChange={() => toggle(division.id)}
+                    />
+                  </TableCell>
+                )}
+                <TableCell className="text-ink-secondary text-[13px]">{index + 1}</TableCell>
+                <TableCell>
+                  {editingId === division.id ? (
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-48"
+                    />
+                  ) : (
+                    <span className="font-medium text-ink-primary">{division.name}</span>
                   )}
-                  <TableHead style={{ width: 50 }}>No</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  {isAdmin && editingId !== null && <TableHead style={{ width: 100 }}>Aksi</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {divisions.map((division, index) => (
-                  <TableRow key={division.id}>
-                    {isAdmin && (
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(division.id)}
-                          onChange={() => toggle(division.id)}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell className="text-ink-secondary text-[13px]">{index + 1}</TableCell>
-                    <TableCell>
-                      {editingId === division.id ? (
-                        <Input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-48"
-                        />
-                      ) : (
-                        <span className="font-medium text-ink-primary">{division.name}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {editingId === division.id ? (
-                        <Input
-                          value={editDesc}
-                          onChange={(e) => setEditDesc(e.target.value)}
-                          className="w-64"
-                        />
-                      ) : (
-                        <span className="text-ink-secondary text-[13px]">
-                          {division.description || "Tidak ada deskripsi"}
-                        </span>
-                      )}
-                    </TableCell>
-                    {isAdmin && editingId === division.id && (
-                      <TableCell>
-                        <div className="flex gap-1.5">
-                          <Button size="sm" variant="primary" onClick={handleSaveEdit}>
-                            Simpan
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                            Batal
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableCell>
+                <TableCell>
+                  {editingId === division.id ? (
+                    <Input
+                      value={editDesc}
+                      onChange={(e) => setEditDesc(e.target.value)}
+                      className="w-64"
+                    />
+                  ) : (
+                    <span className="text-ink-tertiary text-[13px]">
+                      {division.description || "Tidak ada deskripsi"}
+                    </span>
+                  )}
+                </TableCell>
+                {isAdmin && editingId === division.id && (
+                  <TableCell>
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant="primary" onClick={handleSaveEdit}>
+                        Simpan
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                        Batal
+                      </Button>
+                    </div>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       <ConfirmDeleteDialog

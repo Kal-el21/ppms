@@ -1,5 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "@fontsource-variable/geist";
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -49,50 +50,84 @@
   --color-ink-secondary: var(--text-secondary);
   --color-ink-tertiary: var(--text-tertiary);
 
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --shadow-sm: 0 1px 3px rgba(15, 18, 32, 0.04), 0 1px 2px rgba(15, 18, 32, 0.06);
+  --shadow-md: 0 4px 6px rgba(15, 18, 32, 0.04), 0 2px 4px rgba(15, 18, 32, 0.08);
+  --shadow-lg: 0 10px 15px rgba(15, 18, 32, 0.04), 0 4px 6px rgba(15, 18, 32, 0.1);
+
+  --ring: var(--primary-600);
+
+  --font-sans: "Geist Variable", -apple-system, BlinkMacSystemFont, sans-serif;
 
   --shadow-none: none;
 }
-dl, dt, dd {
-  margin: 0;
-  padding: 0;
+
+@theme inline {
+  --color-background: var(--surface);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: var(--primary-600);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--surface-secondary);
+  --color-secondary-foreground: var(--text-primary);
+  --color-muted: var(--surface-tertiary);
+  --color-muted-foreground: var(--text-secondary);
+  --color-accent: var(--surface-secondary);
+  --color-accent-foreground: var(--text-primary);
+  --color-destructive: var(--danger-600);
+  --color-input: var(--border);
+  --color-ring: var(--primary-600);
+  --color-chart-1: var(--primary-600);
+  --color-chart-2: #7C3AED;
+  --color-chart-3: #0891B2;
+  --color-chart-4: #059669;
+  --color-chart-5: #DC2626;
+
+  --color-sidebar: var(--surface);
+  --color-sidebar-foreground: var(--text-primary);
+  --color-sidebar-primary: var(--primary-600);
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: var(--surface-secondary);
+  --color-sidebar-accent-foreground: var(--text-primary);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--primary-600);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 }
 
 :root {
   --surface: #FFFFFF;
   --surface-secondary: #F8FAFC;
   --surface-tertiary: #F1F5F9;
-  --border: #E2E8F0;
-  --border-strong: #CBD5E1;
-  --text-primary: #0F172A;
-  --text-secondary: #64748B;
-  --text-tertiary: #94A3B8;
-
+  --border: #E6E8EC;
+  --border-strong: #D3D8E0;
+  --text-primary: #0B1220;
+  --text-secondary: #5B6573;
+  --text-tertiary: #8A94A6;
   --page-bg: #F1F5F9;
 }
 
-/*
-  Kunci perbaikan bug Phase preview sebelumnya: variabel di-scope ke
-  `.dark` pada elemen <html> (ditambahkan oleh ThemeProvider, lihat
-  src/lib/theme.tsx), BUKAN attribute selector manual per-elemen.
-  html.dark akan otomatis menurunkan variabel ini ke SEMUA child,
-  termasuk <body>, tanpa perlu repeat selector di setiap komponen.
-*/
 .dark {
-  --surface: #0B1120;
-  --surface-secondary: #111827;
+  --surface: #0F1623;
+  --surface-secondary: #141C2B;
   --surface-tertiary: #1A2436;
-  --border: #1E293B;
-  --border-strong: #293548;
+  --border: #1E2937;
+  --border-strong: #2D3A4E;
   --text-primary: #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-tertiary: #64748B;
-
-  --page-bg: #060A14;
+  --text-secondary: #7D8DA0;
+  --text-tertiary: #5A6A7E;
+  --page-bg: #0A0E16;
 }
 
 * {
@@ -105,7 +140,7 @@ html, body, #root {
 
 body {
   margin: 0;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--page-bg);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;

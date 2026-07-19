@@ -12,7 +12,7 @@ import {
 } from "../hooks/useRequests";
 import { useAuth } from "../../auth/context/AuthContext";
 import { Button } from "../../../components/ui/button";
-import { Badge } from "../../../components/ui/badge";
+import { StatusBadge, getStatusColor } from "../../../components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
@@ -159,7 +159,7 @@ export default function RequestDetailPage() {
   const [revisionReason, setRevisionReason] = useState("");
   const [reviseForm, setReviseForm] = useState<ReviseFormState>(emptyReviseForm);
 
-  if (isLoading || !request) return <div>Loading...</div>;
+  if (isLoading || !request) return <div className="text-ink-secondary text-sm">Memuat detail request…</div>;
 
   const isOwner = user?.id === request.requester_id;
   const latestApproval = approvals?.[approvals.length - 1];
@@ -249,7 +249,7 @@ export default function RequestDetailPage() {
       <PageHeader
         title={request.title}
         subtitle={request.request_number || `REQ-${request.id}`}
-        actions={<Badge>{request.status}</Badge>}
+        actions={<StatusBadge color={getStatusColor(request.status)}>{request.status}</StatusBadge>}
       />
 
       <Card>
@@ -475,7 +475,7 @@ export default function RequestDetailPage() {
             {approvals.map((approval) => (
               <div key={approval.id} className="border-b border-border pb-3 text-sm last:border-b-0 last:pb-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{approval.action}</Badge>
+                  <StatusBadge color={getStatusColor(approval.action === "REQUEST_REVISION" ? "REVISION_REQUESTED" : approval.action)}>{approval.action}</StatusBadge>
                   <span className="text-ink-tertiary">
                     {new Date(approval.created_at).toLocaleString("id-ID")}
                   </span>

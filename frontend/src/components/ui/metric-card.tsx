@@ -6,6 +6,7 @@ interface MetricCardProps {
   icon: ReactNode;
   iconColor: "blue" | "green" | "amber" | "red" | "teal" | "indigo" | "emerald";
   delta?: { direction: "up" | "down"; text: string } | { neutral: string };
+  trend?: number[];
 }
 
 const iconColorMap: Record<MetricCardProps["iconColor"], string> = {
@@ -18,25 +19,59 @@ const iconColorMap: Record<MetricCardProps["iconColor"], string> = {
   emerald: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
 };
 
-export function MetricCard({ label, value, icon, iconColor, delta }: MetricCardProps) {
+function Sparkline({ data }: { data: number[] }) {
+  if (data.length < 2) return null;
+  const width = 72;
+  const height = 28;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - ((v - min) / range) * (height - 4) - 2;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="flex-shrink-0">
+      <polyline
+        fill="none"
+        stroke="var(--primary-600)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
+  );
+}
+
+export function MetricCard({ label, value, icon, iconColor, delta, trend }: MetricCardProps) {
+  const deltaValue = delta && "neutral" in delta ? undefined : delta;
+
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
       <div className="flex items-center justify-between mb-2.5">
         <span className="text-[12.5px] font-medium text-ink-secondary">{label}</span>
-        <div className={`h-7 w-7 rounded-md flex items-center justify-center ${iconColorMap[iconColor]}`}>
-          {icon}
+        <div className="flex items-center gap-2">
+          {trend && trend.length >= 2 && <Sparkline data={trend} />}
+          <div className={`h-7 w-7 rounded-md flex items-center justify-center ${iconColorMap[iconColor]}`}>
+            {icon}
+          </div>
         </div>
       </div>
       <div className="text-[28px] font-semibold leading-none tracking-tight mb-2">{value}</div>
       {delta && "neutral" in delta ? (
         <div className="text-xs text-ink-tertiary">{delta.neutral}</div>
-      ) : delta ? (
+      ) : deltaValue ? (
         <div
           className={`text-xs font-semibold flex items-center gap-1 ${
-            delta.direction === "up" ? "text-success-600" : "text-danger-600"
+            deltaValue.direction === "up" ? "text-success-600" : "text-danger-600"
           }`}
         >
-          {delta.direction === "up" ? (
+          {deltaValue.direction === "up" ? (
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
               <path d="M12 19V5M5 12l7-7 7 7" />
             </svg>
@@ -45,7 +80,7 @@ export function MetricCard({ label, value, icon, iconColor, delta }: MetricCardP
               <path d="M12 5v14M5 12l7 7 7-7" />
             </svg>
           )}
-          {delta.text}
+          {deltaValue.text}
         </div>
       ) : null}
     </div>

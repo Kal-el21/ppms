@@ -14,6 +14,7 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  TableDensityToggle, type TableDensity,
 } from "@/components/ui/table";
 import { BulkActionsDropdown } from "@/components/shared/BulkActionsDropdown";
 import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
@@ -49,6 +50,7 @@ export default function UsersPage() {
 
   const [deletingIds, setDeletingIds] = useState<number[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [density, setDensity] = useState<TableDensity>("comfortable");
 
   const divisionMap = Object.fromEntries((divisions || []).map((d) => [String(d.id), d.name]));
 
@@ -141,12 +143,15 @@ export default function UsersPage() {
         title="User Management"
         subtitle={`${data?.meta.total ?? 0} user terdaftar`}
         actions={
-          <Button variant="primary" onClick={openCreateForm}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Tambah user
-          </Button>
+          <>
+            <TableDensityToggle value={density} onChange={setDensity} />
+            <Button variant="primary" onClick={openCreateForm}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Tambah user
+            </Button>
+          </>
         }
       />
 
@@ -212,7 +217,7 @@ export default function UsersPage() {
         />
       ) : (
         <>
-          <Table>
+          <Table density={density}>
             <TableHeader>
               <TableRow>
                 <TableHead style={{ width: 40 }}>
@@ -255,7 +260,13 @@ export default function UsersPage() {
                   <TableCell>
                     <StatusBadge color={roleColor[u.system_role] || "gray"}>{u.system_role}</StatusBadge>
                   </TableCell>
-                  <TableCell className="text-ink-secondary">{u.division_id ? (divisionMap[String(u.division_id)] || `Div #${u.division_id}`) : "—"}</TableCell>
+                  <TableCell>
+                    {u.division_id ? (
+                      <span className="text-ink-secondary">{divisionMap[String(u.division_id)] || `Div #${u.division_id}`}</span>
+                    ) : (
+                      <span className="text-ink-tertiary">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge color={u.is_active ? "green" : "red"}>{u.is_active ? "Active" : "Inactive"}</StatusBadge>
                   </TableCell>

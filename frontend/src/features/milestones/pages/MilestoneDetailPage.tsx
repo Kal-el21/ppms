@@ -5,6 +5,15 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { StatusBadge, getStatusColor } from "../../../components/ui/status-badge";
+import { EmptyState } from "../../../components/shared/EmptyState";
+import { CardSkeleton } from "../../../components/ui/skeleton";
+
+const notFoundIcon = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+  </svg>
+);
 
 export default function MilestoneDetailPage() {
   const { projectId, milestoneId } = useParams();
@@ -22,8 +31,16 @@ export default function MilestoneDetailPage() {
   const [name, setName] = useState(milestone?.name || "");
   const [description, setDescription] = useState(milestone?.description || "");
 
-  if (isLoading) return <div>Loading...</div>;
-  if (!milestone) return <div>Milestone not found</div>;
+  if (isLoading) return <CardSkeleton />;
+  if (!milestone) {
+    return (
+      <EmptyState
+        icon={notFoundIcon}
+        title="Milestone tidak ditemukan"
+        description="Milestone yang Anda cari mungkin telah dihapus atau tidak tersedia."
+      />
+    );
+  }
 
   const handleSave = () => {
     updateMilestone({ milestoneId: mId, payload: { name, description, version: milestone.version } });
@@ -37,18 +54,34 @@ export default function MilestoneDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Milestone #{milestone.id} — {milestone.name}</h1>
+      <div className="flex items-start justify-between">
+        <h1 className="text-[20px] font-semibold tracking-tight m-0">Milestone #{milestone.id} — {milestone.name}</h1>
+        <StatusBadge color={getStatusColor(milestone.status)}>{milestone.status}</StatusBadge>
       </div>
 
       <Card>
         <CardHeader><CardTitle>Details</CardTitle></CardHeader>
         <CardContent>
           {!editMode ? (
-            <div>
-              <p><strong>Description:</strong> {milestone.description}</p>
-              <p><strong>Start:</strong> {milestone.start_date ? new Date(milestone.start_date).toLocaleDateString() : "-"}</p>
-              <p><strong>End:</strong> {milestone.end_date ? new Date(milestone.end_date).toLocaleDateString() : "-"}</p>
+            <div className="space-y-4">
+              <div>
+                <p className="text-[12.5px] text-ink-tertiary mb-1">Description</p>
+                <p className="text-[13.5px] text-ink-primary m-0">{milestone.description}</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[12.5px] text-ink-tertiary mb-1">Start</p>
+                  <p className="text-[13.5px] text-ink-primary m-0">
+                    {milestone.start_date ? new Date(milestone.start_date).toLocaleDateString() : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[12.5px] text-ink-tertiary mb-1">End</p>
+                  <p className="text-[13.5px] text-ink-primary m-0">
+                    {milestone.end_date ? new Date(milestone.end_date).toLocaleDateString() : "-"}
+                  </p>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">

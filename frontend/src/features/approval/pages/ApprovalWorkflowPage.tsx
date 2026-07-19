@@ -19,7 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { BulkActionsDropdown } from "@/components/shared/BulkActionsDropdown";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { useTableSelection } from "@/components/shared/useTableSelection";
 
 const emptyIcon = (
@@ -82,12 +85,10 @@ export default function ApprovalWorkflowPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-[20px] font-semibold tracking-tight m-0">Approval Workflows</h1>
-        <p className="text-[13px] text-ink-secondary mt-1 m-0">
-          Kelola workflow dan level approval untuk pengembangan multi-level approval.
-        </p>
-      </div>
+      <PageHeader
+        title="Approval Workflows"
+        subtitle="Kelola workflow dan level approval untuk pengembangan multi-level approval."
+      />
 
       <Card>
         <CardHeader>
@@ -115,7 +116,7 @@ export default function ApprovalWorkflowPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-[12.5px] text-ink-tertiary">Memuat workflow...</p>
+              <TableSkeleton rows={3} cols={4} />
             ) : !workflows || workflows.length === 0 ? (
               <EmptyState icon={emptyIcon} title="Belum ada workflow" />
             ) : (
@@ -202,7 +203,7 @@ export default function ApprovalWorkflowPage() {
             </div>
 
             {loadingLevels ? (
-              <p className="text-[12.5px] text-ink-tertiary">Memuat levels...</p>
+              <TableSkeleton rows={3} cols={3} />
             ) : !selectedWorkflowId ? (
               <EmptyState icon={emptyIcon} title="Pilih workflow" />
             ) : !levels || levels.length === 0 ? (

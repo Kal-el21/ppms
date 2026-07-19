@@ -100,6 +100,7 @@ export default function AuditLogPage() {
                 <TableHead style={{ width: 40 }}>
                   <input
                     type="checkbox"
+                    className="h-3.5 w-3.5 accent-primary-600 cursor-pointer"
                     checked={isAllSelected(rows.map((log) => log.id))}
                     ref={(el) => {
                       if (el) el.indeterminate = isIndeterminate(rows.map((log) => log.id));
@@ -118,9 +119,14 @@ export default function AuditLogPage() {
             <TableBody>
               {rows.map((log, index) => (
                 <TableRow key={log.id}>
-                  <TableCell>
-                    <input type="checkbox" checked={selectedIds.has(log.id)} onChange={() => toggle(log.id)} />
-                  </TableCell>
+                   <TableCell>
+                     <input
+                       type="checkbox"
+                       className="h-3.5 w-3.5 accent-primary-600 cursor-pointer"
+                       checked={selectedIds.has(log.id)}
+                       onChange={() => toggle(log.id)}
+                     />
+                   </TableCell>
                   <TableCell className="text-ink-secondary text-[13px]">
                     {(page - 1) * LIMIT + index + 1}
                   </TableCell>

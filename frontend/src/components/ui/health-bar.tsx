@@ -15,8 +15,8 @@ export function HealthBar({ progress, atRisk = false, className = "" }: HealthBa
   const clamped = Math.max(0, Math.min(100, progress));
 
   const fillStyle = atRisk
-    ? { width: `${clamped}%`, background: "linear-gradient(90deg, #2563EB, #DC2626)" }
-    : { width: `${clamped}%`, background: "#2563EB" };
+    ? { width: `${clamped}%`, background: "linear-gradient(90deg, var(--primary-600), var(--danger-600))" }
+    : { width: `${clamped}%`, background: "var(--primary-600)" };
 
   return (
     <div className={`h-1.5 w-full rounded-full bg-surface-tertiary overflow-hidden ${className}`}>
