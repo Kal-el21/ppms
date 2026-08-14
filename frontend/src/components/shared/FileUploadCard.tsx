@@ -10,6 +10,7 @@ import {
   handleDownload,
 } from "../../features/attachments/hooks/useAttachments";
 import type { EntityType } from "../../features/attachments/types";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 
 interface FileUploadCardProps {
   entityType: EntityType;
@@ -23,6 +24,8 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
   const { data: versions, isLoading: versionsLoading } = useAttachmentVersions(versionAttachmentId ?? 0);
   const { mutate: upload, isPending } = useUploadAttachment(entityType, entityId);
   const { mutate: deleteFile } = useDeleteAttachment(entityType, entityId);
+  const [deleteFileId, setDeleteFileId] = useState<number | null>(null);
+  const [deleteFileOpen, setDeleteFileOpen] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -36,6 +39,13 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const confirmDeleteFile = () => {
+    if (deleteFileId == null) return;
+    deleteFile(deleteFileId);
+    setDeleteFileId(null);
+    setDeleteFileOpen(false);
   };
 
   return (
@@ -99,7 +109,7 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
                   <Button variant="ghost" size="sm" onClick={() => handleDownload(a.id)}>
                     Download
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => deleteFile(a.id)}>
+                  <Button variant="ghost" size="sm" onClick={() => { setDeleteFileId(a.id); setDeleteFileOpen(true); }}>
                     Hapus
                   </Button>
                 </div>
@@ -137,6 +147,18 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
           </div>
         )}
       </CardContent>
+
+      <ConfirmDeleteDialog
+        open={deleteFileOpen}
+        title="Hapus file"
+        description="Apakah Anda yakin ingin menghapus file ini?"
+        onConfirm={confirmDeleteFile}
+        onCancel={() => {
+          setDeleteFileOpen(false);
+          setDeleteFileId(null);
+        }}
+        isDeleting={deleteFile.isPending}
+      />
     </Card>
   );
 }

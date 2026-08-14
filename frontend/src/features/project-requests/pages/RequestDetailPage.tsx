@@ -19,6 +19,7 @@ import { Label } from "../../../components/ui/label";
 import { Select } from "../../../components/ui/select";
 import { Textarea } from "../../../components/ui/textarea";
 import { PageHeader } from "../../../components/shared/PageHeader";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 import type { ProjectRequest, RequestRevision } from "../types";
 
 const initiationOptions = [
@@ -158,6 +159,7 @@ export default function RequestDetailPage() {
   const [showReviseForm, setShowReviseForm] = useState(false);
   const [revisionReason, setRevisionReason] = useState("");
   const [reviseForm, setReviseForm] = useState<ReviseFormState>(emptyReviseForm);
+  const [deleteDraftOpen, setDeleteDraftOpen] = useState(false);
 
   if (isLoading || !request) return <div className="text-ink-secondary text-sm">Memuat detail request…</div>;
 
@@ -222,10 +224,14 @@ export default function RequestDetailPage() {
   };
 
   const handleDeleteDraft = () => {
-    if (!confirm("Hapus draft request ini?")) return;
+    setDeleteDraftOpen(true);
+  };
+
+  const confirmDeleteDraft = () => {
     deleteDraft(requestId, {
       onSuccess: () => navigate("/project-requests"),
     });
+    setDeleteDraftOpen(false);
   };
 
   const handleReview = (action: "APPROVED" | "REJECTED" | "REQUEST_REVISION") => {
@@ -504,6 +510,15 @@ export default function RequestDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDeleteDialog
+        open={deleteDraftOpen}
+        title="Hapus draft request"
+        description="Apakah Anda yakin ingin menghapus draft request ini?"
+        onConfirm={confirmDeleteDraft}
+        onCancel={() => setDeleteDraftOpen(false)}
+        isDeleting={deletingDraft}
+      />
     </div>
   );
 }

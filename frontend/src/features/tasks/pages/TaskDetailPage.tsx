@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui
 import { StatusBadge, getStatusColor } from "../../../components/ui/status-badge";
 import { EmptyState } from "../../../components/shared/EmptyState";
 import { CardSkeleton } from "../../../components/ui/skeleton";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 
 const notFoundIcon = (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -33,6 +34,7 @@ export default function TaskDetailPage() {
   const [description, setDescription] = useState(task?.description || "");
   const [assigneeInput, setAssigneeInput] = useState("");
   const [newComment, setNewComment] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (isLoading) return <CardSkeleton />;
   if (!task) {
@@ -51,8 +53,12 @@ export default function TaskDetailPage() {
   };
 
   const handleDelete = () => {
-    if (!confirm("Hapus task ini?")) return;
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
     deleteTask(tId, { onSuccess: () => navigate(-1) });
+    setDeleteOpen(false);
   };
 
   const handleAssign = () => {
@@ -148,6 +154,15 @@ export default function TaskDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        title="Hapus task"
+        description="Apakah Anda yakin ingin menghapus task ini?"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteOpen(false)}
+        isDeleting={deleting}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui
 import { StatusBadge, getStatusColor } from "../../../components/ui/status-badge";
 import { EmptyState } from "../../../components/shared/EmptyState";
 import { CardSkeleton } from "../../../components/ui/skeleton";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 
 const notFoundIcon = (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -30,6 +31,7 @@ export default function MilestoneDetailPage() {
   const [editMode, setEditMode] = useState(false);
   const [name, setName] = useState(milestone?.name || "");
   const [description, setDescription] = useState(milestone?.description || "");
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (isLoading) return <CardSkeleton />;
   if (!milestone) {
@@ -48,8 +50,12 @@ export default function MilestoneDetailPage() {
   };
 
   const handleDelete = () => {
-    if (!confirm("Hapus milestone ini?")) return;
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
     deleteMilestone(mId, { onSuccess: () => navigate(-1) });
+    setDeleteOpen(false);
   };
 
   return (
@@ -106,6 +112,15 @@ export default function MilestoneDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        title="Hapus milestone"
+        description="Apakah Anda yakin ingin menghapus milestone ini?"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteOpen(false)}
+        isDeleting={deleteMilestone.isPending}
+      />
     </div>
   );
 }

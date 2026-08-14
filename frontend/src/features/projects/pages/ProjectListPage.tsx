@@ -21,6 +21,7 @@ import {
   type TableDensity,
 } from "../../../components/ui/table";
 import { BulkActionsDropdown } from "@/components/shared/BulkActionsDropdown";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 import { useTableSelection } from "@/components/shared/useTableSelection";
 
 interface ProjectListErrorBoundaryProps {
@@ -126,15 +127,30 @@ function ProjectListContent() {
     selectedIds,
     toggle,
     toggleAll,
+    clear,
     selectedCount,
     isAllSelected,
     isIndeterminate,
   } = useTableSelection<number>();
 
+  const [deletingIds, setDeletingIds] = useState<number[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   const handleBulkDelete = () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    deleteProject.mutate(ids[0]);
+    setDeletingIds(ids);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (deletingIds.length === 0) return;
+    for (const id of deletingIds) {
+      await deleteProject.mutateAsync(id);
+    }
+    setDeletingIds([]);
+    setDeleteDialogOpen(false);
+    clear();
   };
 
   return (
@@ -323,6 +339,22 @@ function ProjectListContent() {
           Tidak ada project yang cocok dengan filter.
         </p>
       )}
+
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        title="Hapus project"
+        description={
+          deletingIds.length === 1
+            ? "Apakah Anda yakin ingin menghapus project ini?"
+            : `Apakah Anda yakin ingin menghapus ${deletingIds.length} project yang dipilih?`
+        }
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setDeletingIds([]);
+        }}
+        isDeleting={deleteProject.isPending}
+      />
     </div>
   );
 }

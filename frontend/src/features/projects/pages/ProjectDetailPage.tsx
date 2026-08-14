@@ -49,6 +49,7 @@ import FileUploadCard from "../../../components/shared/FileUploadCard";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { ConfirmDeleteDialog } from "@/components/shared/ConfirmDeleteDialog";
 
 const icon = (d: string, size = 22) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -158,6 +159,11 @@ export default function ProjectDetailPage() {
     project_role: "MEMBER" as ProjectRole,
   });
 
+  const [milestoneDeleteId, setMilestoneDeleteId] = useState<number | null>(null);
+  const [milestoneDeleteOpen, setMilestoneDeleteOpen] = useState(false);
+  const [taskDeleteId, setTaskDeleteId] = useState<number | null>(null);
+  const [taskDeleteOpen, setTaskDeleteOpen] = useState(false);
+
   const handleCreateMilestone = () => {
     if (!milestoneForm.name.trim()) return;
     createMilestone({
@@ -208,8 +214,14 @@ export default function ProjectDetailPage() {
   };
 
   const handleDeleteMilestone = (milestoneId: number) => {
-    if (!confirm("Hapus milestone ini?")) return;
-    deleteMilestone(milestoneId);
+    setMilestoneDeleteId(milestoneId);
+    setMilestoneDeleteOpen(true);
+  };
+
+  const confirmDeleteMilestone = () => {
+    if (milestoneDeleteId == null) return;
+    deleteMilestone(milestoneDeleteId, { onSuccess: () => setMilestoneDeleteOpen(false) });
+    setMilestoneDeleteId(null);
   };
 
   const moveMilestone = (index: number, direction: -1 | 1) => {
@@ -256,8 +268,15 @@ export default function ProjectDetailPage() {
   };
 
   const handleDeleteTask = (taskId: number) => {
-    if (!confirm("Hapus task ini?")) return;
-    deleteTask(taskId);
+    setTaskDeleteId(taskId);
+    setTaskDeleteOpen(true);
+  };
+
+  const confirmDeleteTask = () => {
+    if (taskDeleteId == null) return;
+    deleteTask(taskDeleteId, { onSuccess: () => navigate(-1) });
+    setTaskDeleteId(null);
+    setTaskDeleteOpen(false);
   };
 
   const startAssignTask = (task: Task) => {
@@ -934,6 +953,29 @@ export default function ProjectDetailPage() {
           </>
         )}
       </Tabs>
+
+      <ConfirmDeleteDialog
+        open={milestoneDeleteOpen}
+        title="Hapus milestone"
+        description="Apakah Anda yakin ingin menghapus milestone ini?"
+        onConfirm={confirmDeleteMilestone}
+        onCancel={() => {
+          setMilestoneDeleteOpen(false);
+          setMilestoneDeleteId(null);
+        }}
+        isDeleting={deleteMilestone.isPending}
+      />
+      <ConfirmDeleteDialog
+        open={taskDeleteOpen}
+        title="Hapus task"
+        description="Apakah Anda yakin ingin menghapus task ini?"
+        onConfirm={confirmDeleteTask}
+        onCancel={() => {
+          setTaskDeleteOpen(false);
+          setTaskDeleteId(null);
+        }}
+        isDeleting={deleteTask.isPending}
+      />
     </div>
   );
 }
