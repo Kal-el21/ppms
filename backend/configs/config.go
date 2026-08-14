@@ -62,7 +62,7 @@ func Load() *Config {
 		AppPort: getEnv("APP_PORT", "8080"),
 		AppName: getEnv("APP_NAME", "ppms-backend"),
 
-		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5174"),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),

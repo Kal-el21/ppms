@@ -13,7 +13,7 @@ func CORSConfig(allowedOrigins []string) gin.HandlerFunc {
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-CSRF-Token"},
 		ExposeHeaders:    []string{"Content-Disposition"},
-		AllowCredentials: true, // WAJIB true agar browser mengizinkan cookie dikirim cross-port (localhost:5173 -> localhost:8080)
+		AllowCredentials: true, // WAJIB true agar browser mengizinkan cookie dikirim cross-port (localhost:5174 -> localhost:8081)
 		MaxAge:           12 * time.Hour,
 	})
 }
