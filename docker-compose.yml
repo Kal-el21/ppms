@@ -64,7 +64,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${BACKEND_PORT:-8081}:8080"
+      - "127.0.0.1:8080:8080"  # Only expose to localhost, accessed via nginx
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,35 +82,9 @@ services:
     env_file:
       - .env
     ports:
-      - "${FRONTEND_PORT:-5174}:5173"
+      - "${FRONTEND_PORT:-5174}:80"  # Expose nginx port 80
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-
-  backup:
-    image: postgres:16-alpine
-    container_name: ppms-backup
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: change_me
-    volumes:
-      - ./backups:/backups
-    entrypoint: >
-      /bin/sh -c "
-      while true; do
-        TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
-        echo \"[$$(date)] Starting scheduled backup\";
-        pg_dump -h postgres -U ppms_user -d ppms_db --format=plain | gzip > /backups/ppms_db_$${TIMESTAMP}.sql.gz;
-        echo \"[$$(date)] Backup saved: ppms_db_$${TIMESTAMP}.sql.gz\";
-        find /backups -name 'ppms_db_*.sql.gz' -mtime +30 -delete;
-        sleep 86400;
-      done
-      "
 
 volumes:
   postgres_data:
