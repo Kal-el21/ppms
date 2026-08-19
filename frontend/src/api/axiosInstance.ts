@@ -2,7 +2,7 @@ import axios from "axios";
 import { getErrorMessage } from "../lib/errorMessages";
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
@@ -63,7 +63,7 @@ axiosInstance.interceptors.response.use(
         // Refresh token dikirim otomatis via cookie (path-scoped ke /api/v1/auth),
         // tidak perlu dikirim manual di body seperti versi localStorage sebelumnya.
         await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1"}/auth/refresh`,
+          `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api/v1"}/auth/refresh`,
           {},
           { withCredentials: true }
         );

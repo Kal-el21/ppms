@@ -1,6 +1,8 @@
 package configs
 
 import (
+	"strings"
+
 	"log"
 	"os"
 	"strconv"
@@ -13,7 +15,8 @@ type Config struct {
 	AppPort string
 	AppName string
 
-	FrontendURL string
+	FrontendURL       string
+	CORSAllowedOrigins []string
 
 	DBHost     string
 	DBPort     string
@@ -63,6 +66,7 @@ func Load() *Config {
 		AppName: getEnv("APP_NAME", "ppms-backend"),
 
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5174"),
+		CORSAllowedOrigins: splitCORS(getEnv("CORS_ALLOWED_ORIGINS", "")),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
@@ -100,4 +104,22 @@ func getEnv(key, fallback string) string {
 		return val
 	}
 	return fallback
+}
+
+func splitCORS(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return []string{}
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	if len(out) == 0 {
+		return []string{}
+	}
+	return out
 }

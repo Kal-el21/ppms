@@ -79,7 +79,7 @@ PPMS adalah aplikasi internal perusahaan untuk mengelola siklus hidup proyek dar
 Browser (React SPA)
        │ HTTP/REST
        ▼
-  Gin Backend (:8080)
+  Gin Backend (:8080 internal)
        │
        ├── PostgreSQL (data persistence)
        ├── MinIO (file storage)
@@ -292,7 +292,7 @@ MINIO_USE_SSL=false
 BCRYPT_COST=12
 
 # CORS
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5174
 ```
 
 Generate JWT secret yang aman untuk production:
@@ -304,7 +304,7 @@ openssl rand -base64 32
 ### 5.3 Environment Variables (Frontend)
 
 ```env
-VITE_API_BASE_URL=http://localhost:8080/api/v1
+VITE_API_BASE_URL=http://localhost:8081/api/v1
 ```
 
 ### 5.4 Development Quick Start
@@ -315,7 +315,7 @@ cd ppms
 
 # 2. Salin environment variables
 cp ppms-backend/.env.example ppms-backend/.env
-echo "VITE_API_BASE_URL=http://localhost:8080/api/v1" > ppms-frontend/.env
+echo "VITE_API_BASE_URL=http://localhost:8081/api/v1" > ppms-frontend/.env
 
 # 3. Jalankan infrastruktur (PostgreSQL + MinIO + auto-create bucket)
 docker compose up -d postgres minio minio-init
@@ -329,10 +329,10 @@ docker compose up -d --build backend frontend
 ```
 
 Akses:
-- **Frontend:** http://localhost:5173
-- **Backend API:** http://localhost:8080/api/v1
-- **Health Check:** http://localhost:8080/health
-- **Readiness:** http://localhost:8080/ready
+- **Frontend:** http://localhost:5174
+- **Backend API:** http://localhost:8081/api/v1
+- **Health Check:** http://localhost:8081/health
+- **Readiness:** http://localhost:8081/ready
 - **MinIO Console:** http://localhost:9001
 
 ### 5.5 Default Admin Credentials
@@ -461,7 +461,7 @@ Setelah Project Context Middleware (hanya route `/projects/:id/*`):
 ### 8.1 Base URL
 
 ```
-Development:  http://localhost:8080/api/v1
+Development:  http://localhost:8081/api/v1
 Production:   https://api.ppms.yourcompany.com/api/v1
 ```
 
@@ -980,8 +980,8 @@ docker compose up -d --build
 ```
 
 Akses services:
-- Frontend (Vite dev server): http://localhost:5173
-- Backend: http://localhost:8080
+- Frontend (Vite dev server): http://localhost:5174
+- Backend: http://localhost:8081
 - MinIO Console: http://localhost:9001
 
 ### 15.2 Production
@@ -1048,7 +1048,7 @@ k6 run ppms-backend/loadtest/scenario.js
 
 # Dengan custom environment
 k6 run \
-  -e BASE_URL=http://localhost:8080/api/v1 \
+  -e BASE_URL=http://localhost:8081/api/v1 \
   -e TEST_EMAIL=john@ppms.local \
   -e TEST_PASSWORD=Password123 \
   ppms-backend/loadtest/scenario.js

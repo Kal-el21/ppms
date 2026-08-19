@@ -407,7 +407,7 @@ func main() {
 
 	router := gin.Default()
 	router.Use(middleware.SecurityHeaders())
-	router.Use(middleware.CORSConfig([]string{cfg.FrontendURL}))
+	router.Use(middleware.CORSConfig(cfg.CORSAllowedOrigins))
 
 	// ── Health / Readiness ──────────────────────────────────────────────────
 	router.GET("/health", func(c *gin.Context) {
