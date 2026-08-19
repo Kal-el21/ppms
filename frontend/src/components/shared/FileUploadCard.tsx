@@ -23,7 +23,7 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
   const { data: attachments, isLoading } = useAttachments(entityType, entityId);
   const { data: versions, isLoading: versionsLoading } = useAttachmentVersions(versionAttachmentId ?? 0);
   const { mutate: upload, isPending } = useUploadAttachment(entityType, entityId);
-  const { mutate: deleteFile } = useDeleteAttachment(entityType, entityId);
+  const deleteFileMutation = useDeleteAttachment(entityType, entityId);
   const [deleteFileId, setDeleteFileId] = useState<number | null>(null);
   const [deleteFileOpen, setDeleteFileOpen] = useState(false);
 
@@ -43,7 +43,7 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
 
   const confirmDeleteFile = () => {
     if (deleteFileId == null) return;
-    deleteFile(deleteFileId);
+    deleteFileMutation.mutate(deleteFileId);
     setDeleteFileId(null);
     setDeleteFileOpen(false);
   };
@@ -157,7 +157,7 @@ export default function FileUploadCard({ entityType, entityId }: FileUploadCardP
           setDeleteFileOpen(false);
           setDeleteFileId(null);
         }}
-        isDeleting={deleteFile.isPending}
+        isDeleting={deleteFileMutation.isPending}
       />
     </Card>
   );

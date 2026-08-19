@@ -26,7 +26,7 @@ export default function MilestoneDetailPage() {
   const milestone = useMemo(() => milestones?.find((m: any) => m.id === mId), [milestones, mId]);
 
   const { mutate: updateMilestone } = useUpdateMilestone(pId);
-  const { mutate: deleteMilestone } = useDeleteMilestone(pId);
+  const deleteMilestoneMutation = useDeleteMilestone(pId);
 
   const [editMode, setEditMode] = useState(false);
   const [name, setName] = useState(milestone?.name || "");
@@ -54,7 +54,7 @@ export default function MilestoneDetailPage() {
   };
 
   const confirmDelete = () => {
-    deleteMilestone(mId, { onSuccess: () => navigate(-1) });
+    deleteMilestoneMutation.mutate(mId, { onSuccess: () => navigate(-1) });
     setDeleteOpen(false);
   };
 
@@ -119,7 +119,7 @@ export default function MilestoneDetailPage() {
         description="Apakah Anda yakin ingin menghapus milestone ini?"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteOpen(false)}
-        isDeleting={deleteMilestone.isPending}
+        isDeleting={deleteMilestoneMutation.isPending}
       />
     </div>
   );

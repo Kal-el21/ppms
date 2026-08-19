@@ -3,7 +3,8 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production
+# Install ALL dependencies including devDependencies for building
+RUN npm ci
 
 COPY . .
 RUN npm run build

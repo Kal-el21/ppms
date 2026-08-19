@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import type { Task, TaskPriority } from "../../tasks/types";
 import type { Milestone } from "../../milestones/types";
@@ -81,6 +81,7 @@ const getHealthColor = (health: string) => {
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const projectId = Number(id);
   const { user } = useAuth();
 
@@ -95,12 +96,13 @@ export default function ProjectDetailPage() {
   const { mutate: changeMilestoneStatus } = useChangeMilestoneStatus(projectId);
   const { mutate: reorderMilestones } = useReorderMilestones(projectId);
   const { mutate: updateMilestone } = useUpdateMilestone(projectId);
-  const { mutate: deleteMilestone } = useDeleteMilestone(projectId);
+  const deleteMilestoneMutation = useDeleteMilestone(projectId);
+
   const { mutate: createTask } = useCreateTask(projectId);
   const { mutate: changeTaskStatus } = useChangeTaskStatus(projectId);
   const { mutate: updateProgress } = useUpdateTaskProgress(projectId);
   const { mutate: updateTask } = useUpdateTask(projectId);
-  const { mutate: deleteTask } = useDeleteTask(projectId);
+  const deleteTaskMutation = useDeleteTask(projectId);
   const { mutate: assignTaskUsers } = useAssignTaskUsers(projectId);
   const { mutate: addMember, isPending: addingMember } = useAddMember(projectId);
   const { data: usersData } = useUsers(1, 100, true);
@@ -220,7 +222,7 @@ export default function ProjectDetailPage() {
 
   const confirmDeleteMilestone = () => {
     if (milestoneDeleteId == null) return;
-    deleteMilestone(milestoneDeleteId, { onSuccess: () => setMilestoneDeleteOpen(false) });
+    deleteMilestoneMutation.mutate(milestoneDeleteId, { onSuccess: () => setMilestoneDeleteOpen(false) });
     setMilestoneDeleteId(null);
   };
 
@@ -274,7 +276,7 @@ export default function ProjectDetailPage() {
 
   const confirmDeleteTask = () => {
     if (taskDeleteId == null) return;
-    deleteTask(taskDeleteId, { onSuccess: () => navigate(-1) });
+    deleteTaskMutation.mutate(taskDeleteId, { onSuccess: () => navigate(-1) });
     setTaskDeleteId(null);
     setTaskDeleteOpen(false);
   };
@@ -963,7 +965,7 @@ export default function ProjectDetailPage() {
           setMilestoneDeleteOpen(false);
           setMilestoneDeleteId(null);
         }}
-        isDeleting={deleteMilestone.isPending}
+        isDeleting={deleteMilestoneMutation.isPending}
       />
       <ConfirmDeleteDialog
         open={taskDeleteOpen}
@@ -974,7 +976,7 @@ export default function ProjectDetailPage() {
           setTaskDeleteOpen(false);
           setTaskDeleteId(null);
         }}
-        isDeleting={deleteTask.isPending}
+        isDeleting={deleteTaskMutation.isPending}
       />
     </div>
   );
