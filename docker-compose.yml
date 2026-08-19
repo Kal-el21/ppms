@@ -99,6 +99,29 @@ services:
       postgres:
         condition: service_healthy
     command: ["./migrate", "-direction", "up"]
+  
+  backup:
+    image: postgres:16-alpine
+    container_name: ppms-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: change_me
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      /bin/sh -c "
+      while true; do
+        TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+        echo \"[$$(date)] Starting scheduled backup\";
+        pg_dump -h postgres -U ppms_user -d ppms_db --format=plain | gzip > /backups/ppms_db_$${TIMESTAMP}.sql.gz;
+        echo \"[$$(date)] Backup saved: ppms_db_$${TIMESTAMP}.sql.gz\";
+        find /backups -name 'ppms_db_*.sql.gz' -mtime +30 -delete;
+        sleep 86400;
+      done
+      "
 
 volumes:
   postgres_data:
