@@ -8,6 +8,7 @@ RUN go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -o migrate ./cmd/migrate
 
 # Final stage
 FROM alpine:3.22
@@ -17,6 +18,7 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /app/main .
+COPY --from=builder /app/migrate .
 COPY --from=builder /app/migrations ./migrations
 
 EXPOSE 8080

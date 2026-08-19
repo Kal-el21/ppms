@@ -85,6 +85,20 @@ services:
       - "${FRONTEND_PORT:-5174}:80"  # Expose nginx port 80
     depends_on:
       - backend
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ppms-migrate
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["./migrate", "-direction", "up"]
 
 volumes:
   postgres_data:

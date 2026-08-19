@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"fmt"
 	"strings"
 
 	"log"
@@ -15,7 +16,7 @@ type Config struct {
 	AppPort string
 	AppName string
 
-	FrontendURL       string
+	FrontendURL        string
 	CORSAllowedOrigins []string
 
 	DBHost     string
@@ -65,7 +66,7 @@ func Load() *Config {
 		AppPort: getEnv("APP_PORT", "8080"),
 		AppName: getEnv("APP_NAME", "ppms-backend"),
 
-		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5174"),
+		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:5174"),
 		CORSAllowedOrigins: splitCORS(getEnv("CORS_ALLOWED_ORIGINS", "")),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
@@ -122,4 +123,17 @@ func splitCORS(raw string) []string {
 		return []string{}
 	}
 	return out
+}
+
+// MigrateURL returns a pgx5:// DSN, the scheme golang-migrate's pgx/v5 driver expects.
+func (c Config) MigrateURL() string {
+	return fmt.Sprintf("pgx5://%s:%s@%s:%s/%s?sslmode=%s",
+		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName, c.DBSSLMode)
+}
+
+func (c Config) Validate() error {
+	if c.DBHost == "" || c.DBUser == "" || c.DBName == "" {
+		return fmt.Errorf("missing database configuration")
+	}
+	return nil
 }
