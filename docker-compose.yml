@@ -59,12 +59,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ppms-backend
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "127.0.0.1:8080:8080"  # Only expose to localhost, accessed via nginx
+    environment:
+      DB_HOST: postgres
+      MINIO_ENDPOINT: minio:9000
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,6 +72,12 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./backend:/app
+      - go-mod-cache:/go/pkg/mod
+    command: ["go", "run", "./cmd/api"]
 
   frontend:
     build:
@@ -85,44 +91,46 @@ services:
       - "${FRONTEND_PORT:-5174}:80"  # Expose nginx port 80
     depends_on:
       - backend
-  migrate:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: ppms-migrate
-    restart: "no"
-    env_file:
-      - .env
-    environment:
-      DB_HOST: postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: ["./migrate", "-direction", "up"]
+
+  # migrate:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: ppms-migrate
+  #   restart: "no"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     DB_HOST: postgres
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   command: ["./migrate", "-direction", "up"]
   
-  backup:
-    image: postgres:16-alpine
-    container_name: ppms-backup
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: change_me
-    volumes:
-      - ./backups:/backups
-    entrypoint: >
-      /bin/sh -c "
-      while true; do
-        TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
-        echo \"[$$(date)] Starting scheduled backup\";
-        pg_dump -h postgres -U ppms_user -d ppms_db --format=plain | gzip > /backups/ppms_db_$${TIMESTAMP}.sql.gz;
-        echo \"[$$(date)] Backup saved: ppms_db_$${TIMESTAMP}.sql.gz\";
-        find /backups -name 'ppms_db_*.sql.gz' -mtime +30 -delete;
-        sleep 86400;
-      done
-      "
+  # backup:
+  #   image: postgres:16-alpine
+  #   container_name: ppms-backup
+  #   restart: unless-stopped
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     PGPASSWORD: change_me
+  #   volumes:
+  #     - ./backups:/backups
+  #   entrypoint: >
+  #     /bin/sh -c "
+  #     while true; do
+  #       TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+  #       echo \"[$$(date)] Starting scheduled backup\";
+  #       pg_dump -h postgres -U ppms_user -d ppms_db --format=plain | gzip > /backups/ppms_db_$${TIMESTAMP}.sql.gz;
+  #       echo \"[$$(date)] Backup saved: ppms_db_$${TIMESTAMP}.sql.gz\";
+  #       find /backups -name 'ppms_db_*.sql.gz' -mtime +30 -delete;
+  #       sleep 86400;
+  #     done
+  #     "
 
 volumes:
   postgres_data:
   minio_data:
+  go-mod-cache:

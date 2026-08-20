@@ -79,14 +79,22 @@ func (s *auditService) Log(params LogParams) error {
 		return err
 	}
 
+	var oldData, newData json.RawMessage
+	if oldDataStr != "" {
+		oldData = json.RawMessage(oldDataStr)
+	}
+	if newDataStr != "" {
+		newData = json.RawMessage(newDataStr)
+	}
+
 	log := &entity.AuditLog{
 		UserID:     params.UserID,
 		Module:     params.Module,
 		Action:     params.Action,
 		EntityType: params.EntityType,
 		EntityID:   params.EntityID,
-		OldData:    oldDataStr,
-		NewData:    newDataStr,
+		OldData:    oldData,
+		NewData:    newData,
 		IPAddress:  params.IPAddress,
 		UserAgent:  params.UserAgent,
 		RequestID:  params.RequestID,

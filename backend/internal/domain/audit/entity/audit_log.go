@@ -1,6 +1,9 @@
 package entity
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type AuditLog struct {
 	ID     uint64  `gorm:"primaryKey" json:"id"`
@@ -12,8 +15,8 @@ type AuditLog struct {
 	EntityType string  `json:"entity_type"`
 	EntityID   *uint64 `json:"entity_id"`
 
-	OldData string `gorm:"type:json" json:"old_data,omitempty"`
-	NewData string `gorm:"type:json" json:"new_data,omitempty"`
+	OldData json.RawMessage `gorm:"type:json" json:"old_data,omitempty"`
+	NewData json.RawMessage `gorm:"type:json" json:"new_data,omitempty"`
 
 	IPAddress string `json:"ip_address"`
 	UserAgent string `json:"user_agent"`

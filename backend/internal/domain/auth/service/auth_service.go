@@ -17,6 +17,7 @@ import (
 	userentity "github.com/Kal-el21/backend/internal/domain/user/entity"
 	userrepo "github.com/Kal-el21/backend/internal/domain/user/repository"
 	apperrors "github.com/Kal-el21/backend/internal/shared/errors"
+	"github.com/Kal-el21/backend/internal/shared/logger"
 	"golang.org/x/crypto/bcrypt"
 	gormerrors "gorm.io/gorm"
 )
@@ -100,10 +101,19 @@ func (s *authService) Login(req dto.LoginRequest, ipAddress, deviceInfo string) 
 	}
 
 	if !user.IsActive {
+		logger.Log.Warn().
+			Uint64("user_id", user.ID).
+			Str("email", user.Email).
+			Msg("auth: login attempt for inactive user")
 		return nil, domainerrors.ErrUserInactive
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		logger.Log.Warn().
+			Uint64("user_id", user.ID).
+			Str("email", user.Email).
+			Err(err).
+			Msg("auth: invalid password")
 		return nil, domainerrors.ErrInvalidCredentials
 	}
 
@@ -120,10 +130,19 @@ func (s *authService) InitLogin(req dto.LoginRequest, ipAddress, deviceInfo stri
 	}
 
 	if !user.IsActive {
+		logger.Log.Warn().
+			Uint64("user_id", user.ID).
+			Str("email", user.Email).
+			Msg("auth: init-login attempt for inactive user")
 		return nil, domainerrors.ErrUserInactive
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		logger.Log.Warn().
+			Uint64("user_id", user.ID).
+			Str("email", user.Email).
+			Err(err).
+			Msg("auth: invalid password on init-login")
 		return nil, domainerrors.ErrInvalidCredentials
 	}
 

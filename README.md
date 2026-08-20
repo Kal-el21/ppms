@@ -125,8 +125,11 @@ Setiap domain (`auth`, `user`, `project`, `task`, dst.) bersifat **mandiri** dal
 
 ```
 ppms-backend/
-├── cmd/api/
-│   └── main.go                    ← entry point, wiring semua dependency
+├── cmd/
+│   ├── api/
+│   │   └── main.go                    ← entry point, wiring semua dependency
+│   └── migrate/
+│       └── main.go                    ← migration runner (golang-migrate)
 ├── configs/
 │   └── config.go                  ← load env vars ke struct Config
 ├── internal/
@@ -254,7 +257,7 @@ ppms-frontend/
 - Docker & Docker Compose v2.1+
 - Go 1.23+
 - Node.js 20+
-- golang-migrate CLI: `go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest`
+- golang-migrate CLI (opsional): `go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest` — hanya diperlukan jika ingin membuat migration baru via CLI; untuk menjalankan migration sudah ada `go run ./cmd/migrate`
 - k6 (opsional, untuk load testing)
 
 ### 5.2 Environment Variables (Backend)
@@ -321,11 +324,10 @@ echo "VITE_API_BASE_URL=http://localhost:8081/api/v1" > ppms-frontend/.env
 docker compose up -d postgres minio minio-init
 
 # 4. Tunggu healthy, lalu jalankan semua migration
-migrate -path ppms-backend/migrations \
-  -database "postgres://ppms_user:change_me@localhost:5432/ppms_db?sslmode=disable" up
+docker compose exec backend go run ./cmd/migrate -direction up
 
-# 5. Build & jalankan backend dan frontend
-docker compose up -d --build backend frontend
+# 5. Jalankan backend dan frontend
+docker compose up -d backend frontend
 ```
 
 Akses:
@@ -380,13 +382,13 @@ Akses:
 ### 6.3 Migration
 
 ```bash
-# Jalankan semua migration yang pending
-migrate -path migrations -database "<DSN>" up
+# Jalankan semua migration yang pending (dalam container)
+docker compose exec backend go run ./cmd/migrate -direction up
 
 # Rollback migration terakhir
-migrate -path migrations -database "<DSN>" down 1
+docker compose exec backend go run ./cmd/migrate -direction down -steps 1
 
-# Buat migration baru
+# Buat migration baru (menggunakan standalone CLI)
 migrate create -ext sql -dir migrations -seq <nama_migration>
 ```
 
@@ -991,9 +993,8 @@ Akses services:
 # 2. Build & run dengan override file production
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
-# 3. Jalankan migration (gunakan sslmode=require di production)
-migrate -path ppms-backend/migrations \
-  -database "postgres://USER:PASS@HOST:5432/DB?sslmode=require" up
+# 3. Jalankan migration (go run ./cmd/migrate otomatis membaca DB config dari .env)
+docker compose exec backend go run ./cmd/migrate -direction up
 ```
 
 Perbedaan utama `docker-compose.prod.yml`:
@@ -1109,9 +1110,18 @@ Ikuti checklist di `ppms-backend/docs/testing/soft-delete-checklist.md` sebelum 
 # Masuk ke container database
 docker exec -it ppms-postgres psql -U ppms_user -d ppms_db
 
-# Lihat semua migration yang sudah dijalankan
+# Jalankan semua migration yang pending
+docker compose exec backend go run ./cmd/migrate -direction up
+
+# Rollback 1 migration terakhir
+docker compose exec backend go run ./cmd/migrate -direction down -steps 1
+
+# Lihat versi migration terakhir (via standalone CLI)
 migrate -path ppms-backend/migrations \
   -database "postgres://ppms_user:change_me@localhost:5432/ppms_db?sslmode=disable" version
+
+# Buat migration baru
+migrate create -ext sql -dir migrations -seq <nama_migration>
 
 # Tidy Go modules
 cd ppms-backend && go mod tidy
